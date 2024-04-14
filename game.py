@@ -8,7 +8,7 @@ from src.Model import Player, Domino
 from PIL import Image
 
 pygame.font.init()
-
+pygame.mixer.init()
 W, H = 1400, 720
 
 NAME_FONT = pygame.font.SysFont("comicsans", 20)
@@ -27,6 +27,43 @@ box_help = [False, 0,0]
 error_box = False
 error = False
 insert_start = True
+# Load the sound file
+sound = pygame.mixer.Sound("./assets/sound/bg.wav")
+sound.play()
+# Set the initial sound state
+is_sound_on = True
+
+# Load the button images
+button_image_on = pygame.image.load("./assets/ic_volume.png")
+button_image_off = pygame.image.load("./assets/ic_volume_off.png")
+
+# Scale the button images to the desired size
+button_size = (60, 60)
+button_image_on = pygame.transform.scale(button_image_on, button_size)
+button_image_off = pygame.transform.scale(button_image_off, button_size)
+
+# Set the initial button image
+button_image = button_image_on if is_sound_on else button_image_off
+
+# Define the button position
+button_position = (W - button_size[0] - 50, 50)  # Right-aligned position)
+
+# Define the colors
+WHITE = (255, 255, 255)
+BROWN = (210, 107, 3)
+BUTTON_COLOR = BROWN
+BUTTON_BORDER_COLOR = WHITE
+BUTTON_TEXT_COLOR = WHITE
+# Define the font
+font = pygame.font.Font(None, 32)
+
+# Define the button dimensions
+button_width, button_height = 150, 50
+button_corner_radius = 10
+
+# Define the button position
+button_x = W - button_width - 40
+button_y = H - button_height - 40
 
 def is_mouse_on_domino(mouse_position, domino_position):
     if mouse_position[0] > domino_position[0]\
@@ -227,12 +264,67 @@ def check_mouse_link_domino_vertical(mouse_position, domino, selected):
         and domino.link == 1 :
         return "Down"
 
+def toggle_sound():
+    global is_sound_on, button_image
+    is_sound_on = not is_sound_on  # Chuyển đổi trạng thái
 
+    if is_sound_on:
+        sound.play(-1) #lặp âm thanh
+        button_image = button_image_on
+    else:
+        sound.stop()
+        button_image = button_image_off
 def redraw_window(players,current_id, board, is_dragging, box_help,error ,hand, selected, current_turn):
 
 	# WIN.fill((255,255,255)) # fill screen white, to clear old frames
-	WIN.fill((0, 0, 0))
- 
+	# Tạo màu cho board
+	WIN.fill((210, 107, 3))
+
+	# Tạo hình chữ nhật ở giữa màn hình
+	rect_width = W  # Chiều rộng của hình chữ nhật bằng với chiều rộng của cửa sổ đồ họa
+	rect_height = 400
+	rect_x = 0  # Vị trí x để hình chữ nhật nằm ở giữa màn hình theo chiều ngang
+	rect_y = (H - rect_height) // 2  # Vị trí y để hình chữ nhật nằm giữa màn hình theo chiều dọc
+	pygame.draw.rect(WIN, (9, 148, 15), (rect_x, rect_y, rect_width, rect_height))
+
+	# Tạo viền bọc domino (oppent's)
+	rect_width = 760
+	rect_height = 140
+	rect_x = (W - rect_width) // 2  # Vị trí x để hình chữ nhật nằm giữa màn hình theo chiều ngang
+	rect_y = (H - rect_height) // 20 - 24  # Vị trí y để hình chữ nhật nằm ở phía trên theo chiều dọc
+	rect_radius = 10
+
+	# Vẽ hình chữ nhật nhỏ hơn lên trên với màu trắng
+	border_width = 2
+	pygame.draw.rect(WIN, (255, 255, 255), (rect_x, rect_y, rect_width, rect_height), border_width,border_radius=rect_radius)
+
+	# Tạo viền bọc domino (you)
+	rect_width = 760
+	rect_height = 140
+	rect_x = (W - rect_width) // 2  # Vị trí x để hình chữ nhật nằm giữa màn hình theo chiều ngang
+	rect_y = (H - rect_height) - 5  # Vị trí y để hình chữ nhật nằm ở phía trên theo chiều dọc
+	rect_radius = 10
+
+	# Vẽ hình chữ nhật nhỏ hơn lên trên với màu trắng
+	border_width = 2
+	pygame.draw.rect(WIN, (255, 255, 255), (rect_x, rect_y, rect_width, rect_height), border_width,border_radius=rect_radius)
+
+	# Vẽ button volume
+	WIN.blit(button_image, button_position)
+
+	# Vẽ viền button pass
+	pygame.draw.rect(WIN, BUTTON_BORDER_COLOR, (button_x, button_y, button_width, button_height), 0,
+					 button_corner_radius)
+	pygame.draw.rect(WIN, BUTTON_COLOR, (button_x + 2, button_y + 2, button_width - 4, button_height - 4), 0,
+					 button_corner_radius)
+
+	# Vẽ text button pass
+	button_text = "Pass"
+	text_surface = font.render(button_text, True, BUTTON_TEXT_COLOR)
+	text_rect = text_surface.get_rect(center=(button_x + button_width // 2, button_y + button_height // 2))
+	WIN.blit(text_surface, text_rect)
+
+
 	#  if box_help[0] and error  == False:
     #     # Vẽ hình vuông với viền
     #     square_rect = pygame.Rect(box_help[1] ,box_help[2] , players[current_id].selected.width, players[current_id].selected.height)
@@ -250,11 +342,11 @@ def redraw_window(players,current_id, board, is_dragging, box_help,error ,hand, 
 		box = pygame.Rect(box_help[1] ,box_help[2] , selected.width, selected.height)
 		pygame.draw.rect(WIN, (250, 112, 112), box)
 
-	#Draw Board
+	# #Draw Board
 	for i, domino in enumerate(board):
 		domino_image = domino.get_image()
 		image = pygame.image.load(domino_image)
-		
+
 		if(domino.dot1 < domino.dot2):
 			if(domino.is_horizontal == False):
 				pass
@@ -268,9 +360,10 @@ def redraw_window(players,current_id, board, is_dragging, box_help,error ,hand, 
 				image = pygame.transform.rotate(image, -90)
 			else:
 				image = pygame.transform.rotate(image, -90)
-		
+
 		rect = pygame.Rect(domino.position[0], domino.position[1], domino.width, domino.height)
 		resized_image = pygame.transform.scale(image, (domino.width, domino.height))
+
 		WIN.blit(resized_image, rect)
 
 	#Draw player hand
@@ -279,6 +372,12 @@ def redraw_window(players,current_id, board, is_dragging, box_help,error ,hand, 
 		image = pygame.image.load(domino_image)
 		position_x = (W - len(hand) * domino.width * 2) // 2 + domino.width * i * 2
 		position_y = H - domino.height
+
+		# Move the hand
+		position_y -= 20
+		position_x += 25
+
+
 		domino.set_position(position_x, position_y)
 		hand[i].set_position(position_x, position_y)
 		rect = pygame.Rect(position_x, position_y , domino.width, domino.height)
@@ -293,6 +392,11 @@ def redraw_window(players,current_id, board, is_dragging, box_help,error ,hand, 
 				image = pygame.image.load(domino_image)
 				position_x = (W - len(players[i].hand) * domino.width * 2) // 2 + domino.width * j * 2
 				position_y = 0
+
+				# Move the hand
+				position_y += 20
+				position_x += 25
+
 				domino.set_position(position_x, position_y)
 				rect = pygame.Rect(position_x, position_y , domino.width, domino.height)
 				resized_image = pygame.transform.scale(image, (domino.width, domino.height))
@@ -318,10 +422,9 @@ def redraw_window(players,current_id, board, is_dragging, box_help,error ,hand, 
 		text = TURN_FONT.render("Turn: Your Turn" , 1,(255,255,255))
 		WIN.blit(text,(10,10))
 	else:
-		text = TURN_FONT.render("Turn: Opponent's Turn" , 1, (255,255,255))
+		text = TURN_FONT.render("Turn: Opponent's" , 1, (255,255,255))
 		WIN.blit(text,(10,10))
-
-	# if current_id == current_turn:	
+	# if current_id == current_turn:
 	# 	text = TURN_FONT.render("Turn: Your Turn" , 1,(0,0,0))
 	# 	WIN.blit(text,(10,10))
 	# else:
@@ -723,6 +826,10 @@ def main(name):
 			if event.type == pygame.MOUSEBUTTONDOWN:
 				mouse_position = pygame.mouse.get_pos()
 				# print(is_dragging, selected, current_turn, current_id)
+
+				# Trạng thái tắt bật âm thanh
+				if button_position[0] <= mouse_position[0] <= button_position[0] + button_size[0] and button_position[1] <= mouse_position[1] <= button_position[1] + button_size[1]:
+							toggle_sound()
 
 				# data = "put " + "start" + " " + str(players[current_id].hand[0]) + " " + str(current_turn)
 				# print(is_dragging)
