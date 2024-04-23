@@ -30,9 +30,11 @@ class Player:
         self.over = False
         self.domino_score = 0
         self.score = 0
+        self.play_again = False
+        self.first_play = False
 
     def play(self):
-        self.check_continue_player()
+        # self.check_continue_player()
         self.draw_screen()
         self.draw_domino()
         self.draw_other_player()
@@ -42,14 +44,12 @@ class Player:
         self.draw_turn()
         self.draw_score()
 
-
     def get_domino_score(self):
         domino_score = 0
         for i, domino in enumerate(self.hand):
             domino_score += domino.dot1 + domino.dot2
         return domino_score
 
-    
     def draw_score(self):
         text = TURN_FONT.render("Score: " + str(self.score) , 1,(255,255,255))
         self.display_surface.blit(text,(20, 60))
@@ -72,7 +72,7 @@ class Player:
             for i, domino in enumerate(self.hand):
                 domino_score += domino.dot1 + domino.dot2
 
-            if self.over:
+            if self.is_host==False and self.over and self.play_again == False:
                 data_to_send = ("over", domino_score)           
                 data = pickle.dumps(data_to_send)
                 self.connection.send(data)
@@ -115,6 +115,8 @@ class Player:
     def draw_domino(self):
         for i, domino in enumerate(self.hand):
             image = domino.get_image_pg()
+            if(image == domino.get_image()):
+                image = pygame.image.load(image)
             # image = pygame.image.load(domino_image)
             position_x = (W - len(self.hand) * domino.width * 2) // 2 + domino.width * i * 2
             position_y = H - domino.height
@@ -164,6 +166,13 @@ class Player:
             self.display_surface.blit(text,(10,10))
 
     def draw_box_help(self):
+        if self.selected != None:
+            self.selected.set_position(self.box_help[1], self.box_help[2])
+            for i, domino in enumerate(self.board.placed_dominoes):
+                if(self.selected.is_overlapping(domino)):
+                    self.box_help[0] = False
+                    break
+
         if self.board.y > self.box_help[2]:
             self.box_help[0] = False
         elif self.board.y + self.board.height > self.box_help[2]:
@@ -180,6 +189,18 @@ class Player:
     def event_loop(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_position = pygame.mouse.get_pos()
+            if self.selected != None:
+                self.selected.set_position(self.box_help[1], self.box_help[2])
+                for i, domino in enumerate(self.board.placed_dominoes):
+                    if(self.selected.is_overlapping(domino)):
+                        self.box_help[0] = False
+                        break
+                    
+            if self.board.y > self.box_help[2]:
+                self.box_help[0] = False
+            elif self.board.y + self.board.height > self.box_help[2]:
+                self.box_help[0] == False
+
             if(self.is_dragging == False and self.selected == None and self.turn == True):
                 for i, domino in enumerate(self.hand):
                     domino_position = domino.position
@@ -248,6 +269,23 @@ class Player:
                         self.connection.send(data)
 
         if event.type == pygame.KEYDOWN:	
+            if event.key == pygame.K_RETURN and self.play_again == True:
+                self.hand = []
+                self.other_player = 0
+                self.board.play_again()
+                self.over = False
+                self.play_again = False
+                if(self.is_host == True):
+                    self.board.create()
+                    self.board.shuffle()
+                    self.hand = self.board.hand_player()
+                    self.create_image_pg()
+                    self.other_player = 7
+                    data = ("play-again", self.board.domino_list)
+                    self.turn = True
+                    data = pickle.dumps(data)
+                    self.connection.send(data)
+
             if event.key == pygame.K_p:
                 if(self.is_dragging == False and self.turn == True):
                     self.turn = False
@@ -552,13 +590,6 @@ class Player:
                             return
                         else:
                             self.box_help[0] = False  
-        #bấm enter để chơi lại
-        if event.type == pygame.locals.KEYDOWN and event.key == pygame.locals.K_RETURN:
-            if self.is_host:
-                self.clicked = False
-            else:
-                self.clicked = True
-            self.connection.sendto(b'Play again', (self.host, self.port))
 
     def is_mouse_on_domino(self, mouse_position, domino_position):
         if mouse_position[0] > domino_position[0]\
@@ -577,7 +608,7 @@ class Player:
         self.turn = True
 
     def create_image_pg(self):
-        for domino in  self.hand:
+        for domino in self.hand:
             domino_image = pygame.image.load(domino.get_image())
             domino.set_image_pg(domino_image)
 
@@ -612,6 +643,10 @@ class Board:
                 image_path = f"assets\\Domino{i}{j}.png"
                 domino_new = Domino(i,j,image_path)
                 self.domino_list.append(domino_new)
+
+    def play_again(self):
+        self.domino_list = []
+        self.placed_dominoes = []
 
     def shuffle(self):
         random.shuffle(self.domino_list)
@@ -907,4 +942,13 @@ class Domino:
         elif domino_end.link == 2:
             if self.dot1 == domino_end.dot1 or self.dot2 == domino_end.dot1:
                 return True
+        return False
+    
+    def is_overlapping(self, domino):
+    # Kiểm tra xem hai domino có chồng lên nhau không
+        if (self.position[0] + self.width > domino.position[0] and
+                self.position[0] < domino.position[0] + domino.width and
+                self.position[1] + self.height > domino.position[1] and
+                self.position[1] < domino.position[1] + domino.height):
+            return True
         return False
