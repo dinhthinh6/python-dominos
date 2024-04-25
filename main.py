@@ -107,7 +107,8 @@ class Client:
 
 class Server:
     def __init__(self, host, port, username, surface):
-        self.host = socket.gethostbyname("localhost")
+        # print(socket.gethostname())
+        self.host = host
         self.port = port
         self.username = username
         self.competitor_name = 'Player 2'
@@ -129,12 +130,13 @@ class Server:
             width=WINDOW_SIZE[0]
         )
         loading.add.label(
-            title=f'IP Address:{socket.gethostbyname("localhost")}')
+            title=f'IP Address:{socket.gethostbyname(socket.gethostname())}')
         threading.Thread(target=self.accepted_connect).start()
         while True:
             events = pygame.event.get()
             for event in events:
                 if event.type == pygame.QUIT:
+                    self.sock.close()
                     pygame.quit()
                     sys.exit()
             if self.connected:

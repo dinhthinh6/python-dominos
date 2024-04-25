@@ -135,7 +135,7 @@ class Player:
         domino_width = 48
         domino_height = 96
         for j in range (self.other_player):
-            domino_image = f"assets\\Domino.png"
+            domino_image = f"assets/Domino.png"
             image = pygame.image.load(domino_image)
             position_x = (W - self.other_player * domino_width * 2) // 2 + domino_width * j * 2
             position_y = 0
@@ -640,7 +640,7 @@ class Board:
     def create(self):
         for i in range(7):
             for j in range(i, 7):
-                image_path = f"assets\\Domino{i}{j}.png"
+                image_path = f"assets/Domino{i}{j}.png"
                 domino_new = Domino(i,j,image_path)
                 self.domino_list.append(domino_new)
 

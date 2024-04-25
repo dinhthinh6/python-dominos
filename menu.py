@@ -24,8 +24,8 @@ class Menu:
         Server('', 55843, username, self.surface)
 
     def join_click(self):
-        # ip_address = self.ip_address_text.get_value().strip()
-        ip_address = "127.0.0.1"
+        ip_address = self.ip_address_text.get_value().strip()
+        # ip_address = "127.0.0.1"
         if not ip_address: return
         username = self.username_client_text.get_value()
         if not username: return
@@ -85,12 +85,10 @@ class Menu:
             title='   Join Server',
             width=WINDOW_SIZE[0]
         )
-
-
         selected_color_start_server = (255, 255, 255)
         font_name_server = pygame_menu.font.get_font(font_path, 40)
-
         # self.ip_address_text = self.join_server_menu.add.text_input(title='IP address: ')
+        self.ip_address_text = self.join_server_menu.add.text_input(title='IP address: ')
         self.username_client_text = self.join_server_menu.add.text_input(title='Username: ')
         client_text = self.username_client_text
         btn_joint_click = self.join_server_menu.add.button('Join', self.join_click)
