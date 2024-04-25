@@ -90,6 +90,7 @@ class Menu:
         # self.ip_address_text = self.join_server_menu.add.text_input(title='IP address: ')
         self.ip_address_text = self.join_server_menu.add.text_input(title='IP address: ')
         self.username_client_text = self.join_server_menu.add.text_input(title='Username: ')
+        ip_text = self.ip_address_text
         client_text = self.username_client_text
         btn_joint_click = self.join_server_menu.add.button('Join', self.join_click)
         btn_return_menu_client = self.join_server_menu.add.button('Return to main menu', pygame_menu.events.RESET)
@@ -107,7 +108,8 @@ class Menu:
         client_text.set_font(font_name_server, font_size_welcome_to, font_color, selected_color_start_server, readonly_color, readonly_selected_color, background_color)
         btn_joint_click.set_font(font_name_server, font_size_welcome_to, font_color, selected_color_start_server, readonly_color, readonly_selected_color, background_color)
         btn_return_menu_client.set_font(font_name_server, font_size_welcome_to, font_color, selected_color_start_server, readonly_color, readonly_selected_color, background_color)
-
+        ip_text.set_font(font_name_server, font_size_welcome_to, font_color, selected_color_start_server, readonly_color, readonly_selected_color, background_color)
+        
         self.main_menu = pygame_menu.Menu(
             height=WINDOW_SIZE[1],
             theme=main_theme,

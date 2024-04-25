@@ -136,22 +136,25 @@ class Server:
             events = pygame.event.get()
             for event in events:
                 if event.type == pygame.QUIT:
-                    self.sock.close()
-                    pygame.quit()
-                    sys.exit()
+                    break
             if self.connected:
                 break
             if loading.is_enabled():
                 loading.update(events)
                 loading.draw(surface)
             pygame.display.update()
-        loading.disable()
-        self.gui = PlaySurface(self.conn, self.addr[0], self.addr[1], username, hand, self.competitor_name, True)
-        threading.Thread(target=self.receive, daemon=True).start()
-        self.gui.run()
+
+        if self.connected:
+            loading.disable()
+            self.gui = PlaySurface(self.conn, self.addr[0], self.addr[1], username, hand, self.competitor_name, True)
+            threading.Thread(target=self.receive, daemon=True).start()
+            self.gui.run()
+
+        if not self.connected:
+            self.close()
 
     def accepted_connect(self):
-        while True:
+        while not self.connected:
             try:
                 self.conn, self.addr = self.sock.accept()
                 # print(self.conn)
@@ -227,6 +230,11 @@ class Server:
                 print(e)
                 self.sock.close()
                 break
+    
+    def close(self):
+        self.sock.close()
+        pygame.quit()
+        sys.exit()
 
 class PlaySurface:
     def __init__(self, connection, host, port, username, hand ,competitor_name=None, is_host=True):
