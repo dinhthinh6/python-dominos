@@ -32,6 +32,7 @@ class Player:
         self.score = 0
         self.play_again = False
         self.first_play = False
+        self.sound_init()
 
     def play(self):
         # self.check_continue_player()
@@ -43,6 +44,39 @@ class Player:
         self.draw_domino_selected()
         self.draw_turn()
         self.draw_score()
+        self.draw_button_pass()
+        self.draw_sound()
+
+    def sound_init(self):
+        self.sound = pygame.mixer.Sound("./assets/sound/bg.wav")
+        self.sound.play()
+        self.is_sound_on = True
+
+        self.button_image_on = pygame.image.load("./assets/ic_volume.png")
+        self.button_image_off = pygame.image.load("./assets/ic_volume_off.png")
+
+        self.button_image_on = pygame.transform.scale(self.button_image_on, (60,60))
+        self.button_image_off = pygame.transform.scale(self.button_image_off, (60,60))
+
+        self.button_image = self.button_image_on if self.is_sound_on else self.button_image_off
+
+    def toggle_sound(self):
+        self.is_sound_on = not self.is_sound_on  # Chuyển đổi trạng thái
+
+        if self.is_sound_on:
+            self.sound.play(-1) #lặp âm thanh
+            self.button_image = self.button_image_on
+        else:
+            self.sound.stop()
+            self.button_image = self.button_image_off
+    
+    def draw_button_pass(self):
+        pass
+
+    def draw_sound(self):
+        self.button_position = (W - 60 - 50, 50)  # Right-aligned position)
+        self.display_surface.blit(self.button_image, self.button_position)
+
 
     def get_domino_score(self):
         domino_score = 0
@@ -189,6 +223,10 @@ class Player:
     def event_loop(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_position = pygame.mouse.get_pos()
+            if self.selected == None:
+                if self.button_position[0] <= mouse_position[0] <= self.button_position[0] + 60 and self.button_position[1] <= mouse_position[1] <= self.button_position[1] + 60:
+                    self.toggle_sound()
+
             if self.selected != None:
                 self.selected.set_position(self.box_help[1], self.box_help[2])
                 for i, domino in enumerate(self.board.placed_dominoes):
@@ -212,7 +250,7 @@ class Player:
                         self.hand.pop(i)
                         break
             elif (self.turn == True):
-                if(self.is_host == True and len(self.hand) == 6 and self.selected.is_horizontal):
+                if(self.first_play == True and len(self.hand) == 6 and self.selected.is_horizontal):
                     domino_x = mouse_position[0] - self.selected.width//2
                     domino_y = mouse_position[1] - self.selected.height//2
                     if self.board.y > domino_y:
@@ -282,7 +320,10 @@ class Player:
                     self.create_image_pg()
                     self.other_player = 7
                     data = ("play-again", self.board.domino_list)
-                    self.turn = True
+                    if(self.first_play == True):
+                        self.turn = True
+                    else:
+                        self.turn = False
                     data = pickle.dumps(data)
                     self.connection.send(data)
 

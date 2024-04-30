@@ -63,15 +63,20 @@ class Client:
                             self.gui.over = True
                             self.gui.score = data_received[1]
                             self.gui.gui_player.score += self.gui.score
-                    elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "game_over":
+                    elif isinstance(data_received, tuple) and len(data_received) == 3 and data_received[0] == "game_over":
                         if(self.gui.gui_player.over):
                             self.gui.over = True
                             self.gui.score = data_received[1]
                             self.gui.gui_player.score += self.gui.score
+                            self.gui.gui_player.first_play = data_received[2]
 
                     elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "play-again":
                         self.gui.over = False
-                        self.gui.gui_player.turn = False
+                        if(self.gui.gui_player.first_play == True):
+                            self.gui.gui_player.turn = True
+                        else:
+                            self.gui.gui_player.turn = False
+
                         self.gui.gui_player.over = False
                         self.gui.gui_player.play_again = False
                         self.gui.gui_player.board.placed_dominoes = []
@@ -94,8 +99,6 @@ class Client:
                     elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "score":
                         self.gui.score = data_received[1]
                         self.gui.gui_player.score += self.gui.score
-                    else:
-                        print("Received data does not contain 'put' string")
                     
                 except Exception as e:
                     print(e)
@@ -104,6 +107,9 @@ class Client:
                 print(e)
                 self.sock.close()
                 break
+
+        print("QUIT")
+        self.gui.quit = True
 
 class Server:
     def __init__(self, host, port, username, surface):
@@ -130,7 +136,7 @@ class Server:
             width=WINDOW_SIZE[0]
         )
         loading.add.label(
-            title=f'IP Address:{socket.gethostbyname(socket.gethostname())}')
+            title=f'IP Address:{self.get_ip_address()}')
         threading.Thread(target=self.accepted_connect).start()
         while True:
             events = pygame.event.get()
@@ -167,7 +173,6 @@ class Server:
                     data_to_send = (self.board)           
                     data = pickle.dumps(data_to_send)
                     self.conn.send(data)
-                    # self.sock.sendto(f'Connected:::{self.username}'.encode('utf-8'), self.addr)
                     break
                 else:
                     self.connected = False
@@ -175,13 +180,14 @@ class Server:
                 break
 
     def receive(self):
-        while True:
+        while self.connected:
             try:
                 reply = self.conn.recv(2048*4)
-                # reply = self.sock.recv(2048*4)
                 try:
                     data_received = pickle.loads(reply)
-                    print(data_received)
+                    if not data_received:
+                        break
+                    
                     if isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "put":
                         # Lấy danh sách dominoes từ dữ liệu nhận được
                         placed_dominoes = data_received[1]
@@ -214,22 +220,46 @@ class Server:
                             self.gui.score = data_received[1]
                             self.gui.gui_player.score += self.gui.score
                             score = self.gui.gui_player.get_domino_score()
-                            data_to_send = ("game_over", score)                
-                            data = pickle.dumps(data_to_send)
-                            self.conn.send(data)
+
+                            #Ít điểm hơn thì chuyển lượt cho người đó đi trước khi bắt đầu game sau
+                            if(score <= self.gui.score):
+                                client_first_turn = True
+                                self.gui.gui_player.first_play = False
+                                data_to_send = ("game_over", score, client_first_turn)                
+                                data = pickle.dumps(data_to_send)
+                                self.conn.send(data)
+                            else:
+                                client_first_turn = False
+                                self.gui.gui_player.first_play = True
+                                data_to_send = ("game_over", score, client_first_turn)                
+                                data = pickle.dumps(data_to_send)
+                                self.conn.send(data)
+                                
                     elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "start-game":
                         self.gui.over = False
                         self.gui.gui_player.board.domino_list = data_received[1]
-                    else:
-                        print("Received data does not contain 'put' string")
-                    
+
                 except Exception as e:
                     print(e)
 
             except socket.error as e:
                 print(e)
-                self.sock.close()
+                self.connected = False
                 break
+        
+        if not self.connected:
+            print("QUIT")
+            self.gui.quit = True
+            self.conn.close()
+
+    def get_ip_address(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            ip_address = s.getsockname()[0]
+        finally:
+            s.close()
+        return ip_address
     
     def close(self):
         self.sock.close()
@@ -247,6 +277,7 @@ class PlaySurface:
         self.over = False
         self.win = False
         self.score = 0
+        self.quit = False
         if(is_host == True):
             self.gui_player.turn = True
             self.gui_player.first_play = True
@@ -285,8 +316,12 @@ class PlaySurface:
                 end_text_rect = end_text.get_rect(center=(W // 2, H // 2))
                 self.gui_player.display_surface.blit(end_text, end_text_rect)
                 self.gui_player.play_again = True   
-
+            if self.quit == True:
+                break
             pygame.display.update()
+        
+        if self.quit == True:
+            self.close()
 
     def close(self):
         self.connection.close()
