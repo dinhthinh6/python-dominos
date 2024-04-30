@@ -6,6 +6,9 @@ import _pickle as pickle
 
 W, H = 1400, 720
 TURN_FONT = pygame.font.SysFont("comicsans", 30)
+WHITE = (255, 255, 255)
+BROWN = (210, 107, 3)
+PASS_FONT = pygame.font.Font(None, 32)
 
 class Player:
     def __init__(self, connection, host, port, username=None, competitor_name=None, is_host=True):
@@ -33,6 +36,7 @@ class Player:
         self.play_again = False
         self.first_play = False
         self.sound_init()
+        self.button_pass_init()
 
     def play(self):
         # self.check_continue_player()
@@ -69,9 +73,23 @@ class Player:
         else:
             self.sound.stop()
             self.button_image = self.button_image_off
-    
+
+    def button_pass_init(self):
+        self.button_pass_width = 150
+        self.button_pass_height = 50
+        self.button_pass_x = W - self.button_pass_width - 40
+        self.button_pass_y = H - self.button_pass_height - 40
+        self.button_pass_text = "PASS"
+        
     def draw_button_pass(self):
-        pass
+        pygame.draw.rect(self.display_surface, WHITE, (self.button_pass_x, self.button_pass_y, self.button_pass_width, self.button_pass_height),
+                          0, 10)
+        pygame.draw.rect(self.display_surface, BROWN, (self.button_pass_x + 2, self.button_pass_y + 2, self.button_pass_width - 4, self.button_pass_height - 4), 
+                         0, 10)
+        
+        text_surface = PASS_FONT.render(self.button_pass_text, True, WHITE)
+        text_rect = text_surface.get_rect(center=(self.button_pass_x + self.button_pass_width // 2, self.button_pass_y + self.button_pass_height // 2))
+        self.display_surface.blit(text_surface, text_rect)
 
     def draw_sound(self):
         self.button_position = (W - 60 - 50, 50)  # Right-aligned position)
@@ -226,6 +244,13 @@ class Player:
             if self.selected == None:
                 if self.button_position[0] <= mouse_position[0] <= self.button_position[0] + 60 and self.button_position[1] <= mouse_position[1] <= self.button_position[1] + 60:
                     self.toggle_sound()
+                
+                if self.button_pass_x <= mouse_position[0] <= self.button_pass_x + self.button_pass_width and self.button_pass_y <= mouse_position[1] <= self.button_pass_y + self.button_pass_height:
+                    if(self.turn == True):
+                        self.turn = False
+                        data = "swap"
+                        data = pickle.dumps(data)
+                        self.connection.send(data)
 
             if self.selected != None:
                 self.selected.set_position(self.box_help[1], self.box_help[2])
@@ -239,6 +264,7 @@ class Player:
             elif self.board.y + self.board.height > self.box_help[2]:
                 self.box_help[0] == False
 
+
             if(self.is_dragging == False and self.selected == None and self.turn == True):
                 for i, domino in enumerate(self.hand):
                     domino_position = domino.position
@@ -249,6 +275,7 @@ class Player:
                         # data = "pick:" + str(domino) + "-" +  str(i)
                         self.hand.pop(i)
                         break
+
             elif (self.turn == True):
                 if(self.first_play == True and len(self.hand) == 6 and self.selected.is_horizontal):
                     domino_x = mouse_position[0] - self.selected.width//2
