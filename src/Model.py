@@ -1,5 +1,6 @@
 import pygame
 import random
+import copy
 pygame.font.init()
 import _pickle as pickle
 
@@ -27,6 +28,7 @@ class Player:
         self.insert_start = False
         self.board = Board(self.display_surface)
         self.other_player = 7
+        self.other_player_hand = []
         self.rotated = 1
         self.left_domino = False
         self.up_domino = False
@@ -125,7 +127,7 @@ class Player:
                 domino_score += domino.dot1 + domino.dot2
 
             if self.is_host==False and self.over and self.play_again == False:
-                data_to_send = ("over", domino_score)           
+                data_to_send = ("over", domino_score, self.get_player_hand())           
                 data = pickle.dumps(data_to_send)
                 self.connection.send(data)
 
@@ -186,19 +188,34 @@ class Player:
     def draw_other_player(self):
         domino_width = 48
         domino_height = 96
-        for j in range (self.other_player):
-            domino_image = f"assets/Domino.png"
-            image = pygame.image.load(domino_image)
-            position_x = (W - self.other_player * domino_width * 2) // 2 + domino_width * j * 2
-            position_y = 0
+        if self.play_again == True:
+            for i, domino in  enumerate(self.other_player_hand):
+                domino_image = domino.get_image()
+                image = pygame.image.load(domino_image)
+                position_x = (W - self.other_player * domino_width * 2) // 2 + domino_width * i * 2
+                position_y = 0
 
-            # Move the hand
-            position_y += 20
-            position_x += 25
+                # Move the hand
+                position_y += 20
+                position_x += 25
 
-            rect = pygame.Rect(position_x, position_y , domino_width, domino_height)
-            resized_image = pygame.transform.scale(image, (domino_width, domino_height))
-            self.display_surface.blit(resized_image, rect)
+                rect = pygame.Rect(position_x, position_y , domino_width, domino_height)
+                resized_image = pygame.transform.scale(image, (domino_width, domino_height))
+                self.display_surface.blit(resized_image, rect)
+        else:
+            for j in range (self.other_player):
+                domino_image = f"assets/Domino.png"
+                image = pygame.image.load(domino_image)
+                position_x = (W - self.other_player * domino_width * 2) // 2 + domino_width * j * 2
+                position_y = 0
+
+                # Move the hand
+                position_y += 20
+                position_x += 25
+
+                rect = pygame.Rect(position_x, position_y , domino_width, domino_height)
+                resized_image = pygame.transform.scale(image, (domino_width, domino_height))
+                self.display_surface.blit(resized_image, rect)
 
     def draw_domino_selected(self):
         if(self.selected != None):
@@ -251,6 +268,9 @@ class Player:
                         data = "swap"
                         data = pickle.dumps(data)
                         self.connection.send(data)
+
+            if self.play_again == True:
+                return
 
             if self.selected != None:
                 self.selected.set_position(self.box_help[1], self.box_help[2])
@@ -671,6 +691,16 @@ class Player:
     def place_domino(self, board, domino):
     # Xử lý đặt domino lên bảng (chưa thực hiện)
         pass
+
+    def get_player_hand(self):
+        hand_player = []
+        for domino in self.hand:
+            hand_player.append(domino)
+            
+        for domino in hand_player:
+            domino.set_image_pg(domino.get_image())
+                
+        return hand_player
 
     def switch_turn(self):
         self.turn = True

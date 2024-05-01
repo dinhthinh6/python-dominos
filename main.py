@@ -56,19 +56,21 @@ class Client:
                         self.gui.gui_player.switch_turn()
                         self.gui.gui_player.check_continue_player()
 
-                    elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "over":
-                        print(self.gui.gui_player.over)
-                        self.gui.gui_player.check_continue_player()
-                        if(self.gui.gui_player.over):
-                            self.gui.over = True
-                            self.gui.score = data_received[1]
-                            self.gui.gui_player.score += self.gui.score
-                    elif isinstance(data_received, tuple) and len(data_received) == 3 and data_received[0] == "game_over":
+                    # elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "over":
+                    #     print(self.gui.gui_player.over)
+                    #     self.gui.gui_player.check_continue_player()
+                    #     if(self.gui.gui_player.over):
+                    #         self.gui.over = True
+                    #         self.gui.score = data_received[1]
+                    #         self.gui.gui_player.score += self.gui.score
+
+                    elif isinstance(data_received, tuple) and len(data_received) == 4 and data_received[0] == "game_over":
                         if(self.gui.gui_player.over):
                             self.gui.over = True
                             self.gui.score = data_received[1]
                             self.gui.gui_player.score += self.gui.score
                             self.gui.gui_player.first_play = data_received[2]
+                            self.gui.gui_player.other_player_hand = data_received[3]
 
                     elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "play-again":
                         self.gui.over = False
@@ -92,13 +94,14 @@ class Client:
                         # print(other_score)
                     elif data_received == "winner":
                         score = self.gui.gui_player.get_domino_score()
-                        data_to_send = ("score", score)           
+                        data_to_send = ("score", score, self.gui.gui_player.get_player_hand())           
                         data = pickle.dumps(data_to_send)
                         self.sock.send(data)
 
-                    elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "score":
+                    elif isinstance(data_received, tuple) and len(data_received) == 3 and data_received[0] == "score":
                         self.gui.score = data_received[1]
                         self.gui.gui_player.score += self.gui.score
+                        self.gui.gui_player.other_player_hand = data_received[2]
                     
                 except Exception as e:
                     print(e)
@@ -200,24 +203,27 @@ class Server:
 
                     elif data_received == "swap":
                         self.gui.gui_player.switch_turn()
-                        # self.gui.gui_player.check_continue_player()
                         if(self.gui.gui_player.over):
                             self.gui.over = True
+
                     elif data_received == "winner":
                         score = self.gui.gui_player.get_domino_score()
-                        data_to_send = ("score", score)                
+                        data_to_send = ("score", score, self.gui.gui_player.get_player_hand())                
                         data = pickle.dumps(data_to_send)
                         self.conn.send(data)
                         
-                    elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "score":
+                    elif isinstance(data_received, tuple) and len(data_received) == 3 and data_received[0] == "score":
                         self.gui.score = data_received[1]
                         self.gui.gui_player.score += self.gui.score
-                    elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "over":
+                        self.gui.gui_player.other_player_hand = data_received[2]
+
+                    elif isinstance(data_received, tuple) and len(data_received) == 3 and data_received[0] == "over":
                         print(self.gui.gui_player.over)
                         self.gui.gui_player.check_continue_player()
                         if(self.gui.gui_player.over):
                             self.gui.over = True
                             self.gui.score = data_received[1]
+                            self.gui.gui_player.other_player_hand = data_received[2]
                             self.gui.gui_player.score += self.gui.score
                             score = self.gui.gui_player.get_domino_score()
 
@@ -225,13 +231,13 @@ class Server:
                             if(score <= self.gui.score):
                                 client_first_turn = True
                                 self.gui.gui_player.first_play = False
-                                data_to_send = ("game_over", score, client_first_turn)                
+                                data_to_send = ("game_over", score, client_first_turn, self.gui.gui_player.get_player_hand())                
                                 data = pickle.dumps(data_to_send)
                                 self.conn.send(data)
                             else:
                                 client_first_turn = False
                                 self.gui.gui_player.first_play = True
-                                data_to_send = ("game_over", score, client_first_turn)                
+                                data_to_send = ("game_over", score, client_first_turn, self.gui.gui_player.get_player_hand())                
                                 data = pickle.dumps(data_to_send)
                                 self.conn.send(data)
                                 
