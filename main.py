@@ -55,7 +55,9 @@ class Client:
                     elif data_received == "swap":
                         self.gui.gui_player.switch_turn()
                         self.gui.gui_player.check_continue_player()
-
+                    elif data_received[0] == 'chat':
+                        message = data_received[1] + ':' + data_received[2]
+                        self.gui.gui_player.chat_box.messages.append(message)
                     # elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "over":
                     #     print(self.gui.gui_player.over)
                     #     self.gui.gui_player.check_continue_player()
@@ -205,6 +207,10 @@ class Server:
                         self.gui.gui_player.switch_turn()
                         if(self.gui.gui_player.over):
                             self.gui.over = True
+
+                    elif data_received[0] == 'chat':
+                        message = data_received[1] + ':' + data_received[2]
+                        self.gui.gui_player.chat_box.messages.append(message)
 
                     elif data_received == "winner":
                         score = self.gui.gui_player.get_domino_score()

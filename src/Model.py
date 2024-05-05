@@ -10,7 +10,14 @@ TURN_FONT = pygame.font.SysFont("comicsans", 30)
 WHITE = (255, 255, 255)
 BROWN = (210, 107, 3)
 PASS_FONT = pygame.font.Font(None, 32)
+user_text = ''
+# Font chữ
+font = pygame.font.Font(None, 24)
 
+color_active = pygame.Color('lightskyblue3')
+color_passive = pygame.Color('chartreuse4')
+color = color_passive
+active = False
 class Player:
     def __init__(self, connection, host, port, username=None, competitor_name=None, is_host=True):
         self.connection = connection
@@ -39,10 +46,13 @@ class Player:
         self.first_play = False
         self.sound_init()
         self.button_pass_init()
+        self.chat_box = ChatBox(self.display_surface)
+        self.chatting = False
 
     def play(self):
         # self.check_continue_player()
         self.draw_screen()
+        self.chat_box.draw_message()
         self.draw_domino()
         self.draw_other_player()
         self.board.draw_board()
@@ -52,6 +62,7 @@ class Player:
         self.draw_score()
         self.draw_button_pass()
         self.draw_sound()
+        self.chat_box.draw_chat_box()
 
     def sound_init(self):
         self.sound = pygame.mixer.Sound("./assets/sound/bg.wav")
@@ -96,7 +107,6 @@ class Player:
     def draw_sound(self):
         self.button_position = (W - 60 - 50, 50)  # Right-aligned position)
         self.display_surface.blit(self.button_image, self.button_position)
-
 
     def get_domino_score(self):
         domino_score = 0
@@ -256,8 +266,10 @@ class Player:
             pygame.draw.rect(self.display_surface, (250, 112, 112), box)
 
     def event_loop(self, event):
+
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_position = pygame.mouse.get_pos()
+
             if self.selected == None:
                 if self.button_position[0] <= mouse_position[0] <= self.button_position[0] + 60 and self.button_position[1] <= mouse_position[1] <= self.button_position[1] + 60:
                     self.toggle_sound()
@@ -268,6 +280,8 @@ class Player:
                         data = "swap"
                         data = pickle.dumps(data)
                         self.connection.send(data)
+                if self.chat_box.x <= mouse_position[0] <= self.chat_box.x + self.chat_box.width and self.chat_box.y <= mouse_position[1] <= self.chat_box.y + self.chat_box.height:
+                    self.chatting = True
 
             if self.play_again == True:
                 return
@@ -353,67 +367,82 @@ class Player:
                         data = pickle.dumps(data_to_send)
                         self.connection.send(data)
 
-        if event.type == pygame.KEYDOWN:	
-            if event.key == pygame.K_RETURN and self.play_again == True:
-                self.hand = []
-                self.other_player = 0
-                self.board.play_again()
-                self.over = False
-                self.play_again = False
-                if(self.is_host == True):
-                    self.board.create()
-                    self.board.shuffle()
-                    self.hand = self.board.hand_player()
-                    self.create_image_pg()
-                    self.other_player = 7
-                    data = ("play-again", self.board.domino_list)
-                    if(self.first_play == True):
-                        self.turn = True
-                    else:
+        if event.type == pygame.KEYDOWN:
+            if self.chatting == True:
+                global user_text
+                if event.key == pygame.K_RETURN:
+                    self.chat_box.messages.append(self.username + ':' + user_text)
+                    self.chatting = False
+                    data_to_send = ("chat", self.username, user_text)
+                    data = pickle.dumps(data_to_send)
+                    self.connection.send(data)
+                    user_text = ''
+
+                elif event.key == pygame.K_BACKSPACE:
+                    user_text = user_text[:-1]
+                else:
+                    user_text += event.unicode
+            else:
+                if event.key == pygame.K_RETURN and self.play_again == True:
+                    self.hand = []
+                    self.other_player = 0
+                    self.board.play_again()
+                    self.over = False
+                    self.play_again = False
+                    if (self.is_host == True):
+                        self.board.create()
+                        self.board.shuffle()
+                        self.hand = self.board.hand_player()
+                        self.create_image_pg()
+                        self.other_player = 7
+                        data = ("play-again", self.board.domino_list)
+                        if (self.first_play == True):
+                            self.turn = True
+                        else:
+                            self.turn = False
+                        data = pickle.dumps(data)
+                        self.connection.send(data)
+
+                if event.key == pygame.K_p:
+                    if (self.is_dragging == False and self.turn == True):
                         self.turn = False
-                    data = pickle.dumps(data)
-                    self.connection.send(data)
+                        data = "swap"
+                        data = pickle.dumps(data)
+                        self.connection.send(data)
 
-            if event.key == pygame.K_p:
-                if(self.is_dragging == False and self.turn == True):
-                    self.turn = False
-                    data = "swap"
-                    data = pickle.dumps(data)
-                    self.connection.send(data)
+                if event.key == pygame.K_r:
+                    if (self.is_dragging == True):
+                        self.selected.set_image_pg(pygame.transform.rotate(self.selected.get_image_pg(), -90))
+                        self.selected.rotated()
+                        self.selected.is_horizontal = not self.selected.is_horizontal
+                        if self.rotated == 3:
+                            self.rotated = 1
+                        if self.rotated == 1:
+                            self.selected.swap_dot()
+                        self.rotated += 1
+                        self.box_help[0] = False
 
-            if event.key == pygame.K_r:
-                if(self.is_dragging == True):
-                    self.selected.set_image_pg(pygame.transform.rotate(self.selected.get_image_pg(), -90))
-                    self.selected.rotated()
-                    self.selected.is_horizontal = not self.selected.is_horizontal
-                    if self.rotated == 3:
-                        self.rotated = 1
-                    if self.rotated == 1:
-                        self.selected.swap_dot()
-                    self.rotated += 1
-                    self.box_help[0] = False	
+                if event.key == pygame.K_q:
+                    if self.is_dragging and self.selected.is_horizontal == True:
+                        self.selected.set_image_pg(pygame.transform.rotate(self.selected.get_image_pg(), -90))
+                        self.selected.rotated()
+                        self.selected.is_horizontal = not self.selected.is_horizontal
 
-            if event.key == pygame.K_q:
-                if self.is_dragging and self.selected.is_horizontal == True:
-                    self.selected.set_image_pg(pygame.transform.rotate(self.selected.get_image_pg(), -90))
-                    self.selected.rotated()
-                    self.selected.is_horizontal = not self.selected.is_horizontal
-
-                    self.hand.append(self.selected)
-                    self.is_dragging = False
-                    self.selected = None
-                    self.box_help[0] = False  
-                    data = "drop"
-                    # is_dragging = False
-                    # selected_domino = None
-                elif self.is_dragging:
-                    # domino_image = pygame.image.load(self.selected.get_image())
-                    # self.selected.set_image_pg(domino_image)
-                    self.hand.append(self.selected)
-                    self.is_dragging = False
-                    self.selected = None
-                    self.box_help[0] = False
-                    data = "drop"
+                        self.hand.append(self.selected)
+                        self.is_dragging = False
+                        self.selected = None
+                        self.box_help[0] = False
+                        data = "drop"
+                        # is_dragging = False
+                        # selected_domino = None
+                    elif self.is_dragging:
+                        # domino_image = pygame.image.load(self.selected.get_image())
+                        # self.selected.set_image_pg(domino_image)
+                        self.hand.append(self.selected)
+                        self.is_dragging = False
+                        self.selected = None
+                        self.box_help[0] = False
+                        data = "drop"
 
         if event.type == pygame.MOUSEMOTION:
             mouse_position = pygame.mouse.get_pos()
@@ -829,6 +858,61 @@ class Board:
             resized_image = pygame.transform.scale(image, (domino.width, domino.height))
 
             self.surface.blit(resized_image, rect)
+
+class ChatBox:
+    def __init__(self, surface = None):
+        self.messages = []
+        self.surface = surface
+        self.width = 200
+        self.height = 400
+        self.x = W - 210
+        self.y = (H - 400) // 2
+
+    def draw_chat_box(self):
+        WHITE = (255, 255, 255)
+        BLACK = (0, 0, 0)
+
+        # Kích thước khung chat
+        chat_box_width = 200
+        chat_box_height = 400
+        chat_box_x = (W - chat_box_width - 10)
+        chat_box_y = (H - chat_box_height) // 2
+
+        text_surface = font.render(user_text,True,(255,255,255))
+        input_box_width = chat_box_width - 20
+        input_box_height = 40
+        input_box_x = chat_box_x + 10
+        input_box_y = chat_box_y + chat_box_height - input_box_height - 20
+
+        self.surface.blit(text_surface,(input_box_x + 5,input_box_y + 10))
+
+        # Vẽ khung chat
+        pygame.draw.rect(self.surface, BLACK, (chat_box_x, chat_box_y, chat_box_width, chat_box_height), 2)
+        input_rect = pygame.draw.rect(self.surface, BLACK, (input_box_x, input_box_y, input_box_width, input_box_height), 2)
+        input_rect.w = max(100, text_surface.get_width() + 10)
+
+        pygame.display.flip()
+
+    def draw_message(self):
+        chat_box_width = 200
+        chat_box_height = 400
+        chat_box_x = (W - chat_box_width - 10)
+        chat_box_y = (H - chat_box_height) // 2
+
+        self.formatted_messages = []
+        for message in self.messages:
+            if len(message) > 20:
+                parts = [message[i:i + 20] for i in range(0, len(message), 20)]
+                self.formatted_messages.extend(parts)
+            else:
+                self.formatted_messages.append(message)
+
+        for i, message in enumerate(self.formatted_messages):
+            message_surface = font.render(message, True, WHITE)
+            message_rect = message_surface.get_rect()
+            message_rect.topleft = (chat_box_x + 10, chat_box_y + 10 + i * 20)
+            self.surface.blit(message_surface, message_rect.topleft)
+
 
 class Domino:
     def __init__(self, dot1, dot2,  image , position = [0, 0], link = 0, is_horizontal = False ,width = 48, height = 96 ):
