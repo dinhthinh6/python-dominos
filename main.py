@@ -15,24 +15,22 @@ W, H = 1400, 720
 
 
 class Client:
-    def __init__(self, host, port, username):
+    def __init__(self, host, port, username, socket, oppenent):
         self.host = host
         self.port = port
         self.username = username
-        self.competitor_name = 'Player 1'
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.oppenent_name = oppenent
+        self.sock = socket
         self.addr = (self.host, self.port)
-        self.sock.connect(self.addr)
-        data = "Connected"
-        self.sock.send(str.encode(data))
+        data = "get-board"
+        data = pickle.dumps(data)
+        self.sock.send(data)
         self.board = Board()
         reply = self.sock.recv(2048*4)
         data_received = pickle.loads(reply)
         self.board = copy.deepcopy(data_received)
         hand = self.board.hand_player()
-        # self.sock.send(f'Connected:::{self.username}'.encode('utf-8'), (self.host, self.port))
-        self.gui = PlaySurface(self.sock, self.host, self.port, username,hand, self.competitor_name, False)
-        # self.gui.game_gui_window.clicked = True
+        self.gui = PlaySurface(self.sock, self.host, self.port, username, hand, self.oppenent_name, False)
 
         threading.Thread(target=self.receive, daemon=True).start()
         self.gui.run()
@@ -116,7 +114,7 @@ class Client:
 
 class Server:
     def __init__(self, host, port, username, surface):
-        # print(socket.gethostname())
+        print(socket.gethostname())
         self.host = host
         self.port = port
         self.username = username
@@ -166,14 +164,15 @@ class Server:
         while not self.connected:
             try:
                 self.conn, self.addr = self.sock.accept()
-                # print(self.conn)
+                print(self.conn)
                 # Nhận dữ liệu từ client (nếu cần)
                 data = self.conn.recv(1024)
                 data = data.decode("utf-8")
-                # print(data)
+                print(data)
                 if data == 'Connected':
                     self.connected = True
-                    data_to_send = (self.board)           
+                    # data_to_send = (self.board)
+                    data_to_send = ("Connected",self.username)           
                     data = pickle.dumps(data_to_send)
                     self.conn.send(data)
                     break
@@ -190,7 +189,11 @@ class Server:
                     data_received = pickle.loads(reply)
                     if not data_received:
                         break
-                    
+                    if data_received == "get-board":
+                        data_to_send = (self.board)
+                        data = pickle.dumps(data_to_send)
+                        self.conn.send(data)
+                        
                     if isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "put":
                         # Lấy danh sách dominoes từ dữ liệu nhận được
                         placed_dominoes = data_received[1]

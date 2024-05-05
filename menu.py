@@ -1,6 +1,10 @@
 import pygame
 import pygame_menu
 from pygame_menu.examples import create_example_window
+import tkinter as tk
+from tkinter import messagebox
+import _pickle as pickle
+import socket
 
 from typing import Optional
 
@@ -21,7 +25,7 @@ class Menu:
     def start_click(self):
         username = self.username_server_text.get_value()
         if not username: return
-        Server('', 55843, username, self.surface)
+        Server('', 8888, username, self.surface)
 
     def join_click(self):
         ip_address = self.ip_address_text.get_value().strip()
@@ -29,7 +33,35 @@ class Menu:
         if not ip_address: return
         username = self.username_client_text.get_value()
         if not username: return
-        Client(ip_address, 55843, username)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            socket.gethostbyname(ip_address)
+        except socket.gaierror:
+            messagebox.showerror("Error", "Địa chỉ host không hợp lệ !")
+            self.ip_address_text.set_value("")
+            return
+       
+        try:
+            s.connect((ip_address, 8888))
+            s.settimeout(3)
+            data = "Connected"
+            oppenent_name = 'Player 2'
+            s.send(str.encode(data))
+            reply = s.recv(2048)
+            data_received = pickle.loads(reply)
+            # response, addr = s.recv(1024)
+            # message = response.decode('utf-8').split(':::')
+            print("Received message from server:", data_received)
+            if data_received[0] == 'Connected':
+                s.settimeout(None)
+                oppenent_name = data_received[1]
+
+        except (socket.timeout, socket.error):
+            print("Lỗi Socket đã xảy ra")
+            messagebox.showerror("Lỗi", "Địa chỉ host không đúng!!!")
+            self.ip_address_text.set_value("")
+            return
+        Client(ip_address, 8888, username, s, oppenent_name)
 
     def run(self):
         self.surface = create_example_window('DOMINOS - Socket', WINDOW_SIZE)
