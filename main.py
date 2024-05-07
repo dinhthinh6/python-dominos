@@ -308,7 +308,7 @@ class PlaySurface:
             if(len(self.gui_player.hand) == 0 and self.gui_player.selected == None and self.gui_player.other_player > 0):
                 self.gui_player.play_again = True
                 # self.gui_player.score = self.score
-                end_text = pygame.font.SysFont(None, 36).render("You Win! Press 'Enter' to play again. Your score: " + str(self.score) , True, (244,67,54))
+                end_text = pygame.font.SysFont(None, 36).render("You Win! Press 'Enter' to play again. Your score: " + str(self.score) , True, (16,108,159))
                 end_text_rect = end_text.get_rect(center=(W // 2, H // 2))
                 self.gui_player.display_surface.blit(end_text, end_text_rect)
                 self.gui_player.play_again = True
@@ -324,7 +324,7 @@ class PlaySurface:
             elif self.over and len(self.gui_player.hand) >0 :
                 self.gui_player.play_again = True
                 # self.gui_player.score = self.score  
-                end_text = pygame.font.SysFont(None, 36).render("Game Over! Press 'Enter' to play again. Your score: " + str(self.score), True, (255, 255, 255))
+                end_text = pygame.font.SysFont(None, 36).render("Game Over! Press 'Enter' to play again. Your score: " + str(self.score), True, (255, 255, 1))
                 end_text_rect = end_text.get_rect(center=(W // 2, H // 2))
                 self.gui_player.display_surface.blit(end_text, end_text_rect)
                 self.gui_player.play_again = True   
