@@ -3,13 +3,22 @@ import random
 import copy
 pygame.font.init()
 import _pickle as pickle
+import time
+import pygame_gui
 
 
-W, H = 1400, 720
+
+W, H = 1490, 720
 TURN_FONT = pygame.font.SysFont("comicsans", 30)
 WHITE = (255, 255, 255)
 BROWN = (210, 107, 3)
+GRAY = (127, 127, 127)
+GREEN = (0, 128, 0)
 PASS_FONT = pygame.font.Font(None, 32)
+text_font = pygame.font.Font(None, 24)
+
+manager = pygame_gui.UIManager((W, H), 'src/theme.json')
+clock = pygame.time.Clock()
 user_text = ''
 # Font chữ
 font = pygame.font.Font(None, 24)
@@ -18,6 +27,7 @@ color_active = pygame.Color('lightskyblue3')
 color_passive = pygame.Color('chartreuse4')
 color = color_passive
 active = False
+
 class Player:
     def __init__(self, connection, host, port, username=None, competitor_name=None, is_host=True):
         self.connection = connection
@@ -42,12 +52,15 @@ class Player:
         self.over = False
         self.domino_score = 0
         self.score = 0
+        self.turn_score = 0
         self.play_again = False
+        self.playing = True
         self.first_play = False
         self.sound_init()
         self.button_pass_init()
         self.chat_box = ChatBox(self.display_surface)
         self.chatting = False
+        self.status = ""
 
     def play(self):
         # self.check_continue_player()
@@ -56,6 +69,7 @@ class Player:
         self.draw_domino()
         self.draw_other_player()
         self.board.draw_board()
+        self.draw_end_game()
         self.draw_box_help()
         self.draw_domino_selected()
         self.draw_turn()
@@ -63,6 +77,7 @@ class Player:
         self.draw_button_pass()
         self.draw_sound()
         self.chat_box.draw_chat_box()
+
 
     def sound_init(self):
         self.sound = pygame.mixer.Sound("./assets/sound/bg.wav")
@@ -88,6 +103,7 @@ class Player:
             self.button_image = self.button_image_off
 
     def button_pass_init(self):
+        self.button_pass_color = (0, 128, 0)
         self.button_pass_width = 150
         self.button_pass_height = 50
         self.button_pass_x = W - self.button_pass_width - 40
@@ -95,9 +111,10 @@ class Player:
         self.button_pass_text = "PASS"
         
     def draw_button_pass(self):
+        
         pygame.draw.rect(self.display_surface, WHITE, (self.button_pass_x, self.button_pass_y, self.button_pass_width, self.button_pass_height),
                           0, 10)
-        pygame.draw.rect(self.display_surface, BROWN, (self.button_pass_x + 2, self.button_pass_y + 2, self.button_pass_width - 4, self.button_pass_height - 4), 
+        pygame.draw.rect(self.display_surface, self.button_pass_color, (self.button_pass_x + 2, self.button_pass_y + 2, self.button_pass_width - 4, self.button_pass_height - 4), 
                          0, 10)
         
         text_surface = PASS_FONT.render(self.button_pass_text, True, WHITE)
@@ -107,6 +124,31 @@ class Player:
     def draw_sound(self):
         self.button_position = (W - 60 - 50, 50)  # Right-aligned position)
         self.display_surface.blit(self.button_image, self.button_position)
+
+    def draw_end_game(self):
+        if self.playing:
+            return
+        self.play_again = True
+        message = ''
+        color = ''
+        if self.status == "Win":
+            message = f"You Win! Press 'Enter' to play again. Your score: {self.turn_score}"
+            color = (244, 67, 54)
+        elif self.status == "Lose":
+            message = "You Lose! Press 'Enter' to play again."
+            color = (211, 67, 54)
+        elif self.status == "Draw":
+            message = f"Game Over! Press 'Enter' to play again. Your score: {self.turn_score}"
+            color = (255, 255, 255)
+
+        end_text = pygame.font.SysFont(None, 36).render(message, True, color)
+        end_text_rect = end_text.get_rect(center=(W // 2, H // 4))
+
+        border_rect = pygame.Rect(end_text_rect.x - 10, end_text_rect.y - 10,
+                              end_text_rect.w + 15, end_text_rect.h + 15)
+        pygame.draw.rect(self.display_surface, (0, 0, 0), border_rect, 0, 10)  
+
+        self.display_surface.blit(end_text, end_text_rect)
 
     def get_domino_score(self):
         domino_score = 0
@@ -119,7 +161,26 @@ class Player:
         self.display_surface.blit(text,(20, 60))
     
     def check_continue_player(self):
-        if len(self.board.placed_dominoes) > 1:
+        if len(self.board.placed_dominoes) == 1:
+            frist_domino = self.board.placed_dominoes[0]
+            for i, domino in enumerate(self.hand):
+                if domino.check_continue_game_first_domino(frist_domino):
+                    self.over = False
+                    return 
+                self.over = True
+                
+            if(self.selected != None and self.selected.check_continue_game_first_domino(frist_domino)):
+                self.over = False
+
+            domino_score = 0
+            for i, domino in enumerate(self.hand):
+                domino_score += domino.dot1 + domino.dot2
+
+            if self.is_host==False and self.over and self.play_again == False:
+                data_to_send = ("over", domino_score, self.get_player_hand())           
+                data = pickle.dumps(data_to_send)
+                self.connection.send(data) 
+        elif len(self.board.placed_dominoes) > 1:
             domino_start = self.board.placed_dominoes[0]
             domino_end = self.board.placed_dominoes[len(self.board.placed_dominoes)-1]
 
@@ -139,17 +200,12 @@ class Player:
             if self.is_host==False and self.over and self.play_again == False:
                 data_to_send = ("over", domino_score, self.get_player_hand())           
                 data = pickle.dumps(data_to_send)
-                self.connection.send(data)
-
-        # if(self.over == True):
-        #     data_to_send = ("over")           
-        #     data = pickle.dumps(data_to_send)
-        #     self.connection.send(data)    
+                self.connection.send(data)  
 
     def draw_screen(self):
         self.display_surface.fill((210, 107, 3))
 
-        rect_width = W  # Chiều rộng của hình chữ nhật bằng với chiều rộng của cửa sổ đồ họa
+        rect_width = W # Chiều rộng của hình chữ nhật bằng với chiều rộng của cửa sổ đồ họa
         rect_height = 400
         rect_x = 0  # Vị trí x để hình chữ nhật nằm ở giữa màn hình theo chiều ngang
         rect_y = (H - rect_height) // 2  # Vị trí y để hình chữ nhật nằm giữa màn hình theo chiều dọc
@@ -198,7 +254,7 @@ class Player:
     def draw_other_player(self):
         domino_width = 48
         domino_height = 96
-        if self.play_again == True:
+        if self.playing == False:
             for i, domino in  enumerate(self.other_player_hand):
                 domino_image = domino.get_image()
                 image = pygame.image.load(domino_image)
@@ -230,11 +286,34 @@ class Player:
     def draw_domino_selected(self):
         if(self.selected != None):
             mouse_position = pygame.mouse.get_pos()
-            image = self.selected.get_image_pg()
-            # image = pygame.image.load(domino_image)
+            domino_image = self.selected.get_image()
+            image = pygame.image.load(domino_image)
+            if(self.selected.dot1 < self.selected.dot2):
+                if(self.selected.is_horizontal == False):
+                    pass
+                else:
+                    image = pygame.transform.rotate(image, -90)
+                    image = pygame.transform.rotate(image, -90)
+                    image = pygame.transform.rotate(image, -90)
+            else:
+                if(self.selected.is_horizontal == False):
+                    image = pygame.transform.rotate(image, -90)
+                    image = pygame.transform.rotate(image, -90)
+                else:
+                    image = pygame.transform.rotate(image, -90)
+
             rect = pygame.Rect(mouse_position[0] - self.selected.width//2 , mouse_position[1] - self.selected.height//2, self.selected.width, self.selected.height)
             resized_image = pygame.transform.scale(image, (self.selected.width, self.selected.height))
             self.display_surface.blit(resized_image, rect)
+
+            # try:
+            #     image = self.selected.get_image_pg()
+            #     # image = pygame.image.load(domino_image)
+            #     rect = pygame.Rect(mouse_position[0] - self.selected.width//2 , mouse_position[1] - self.selected.height//2, self.selected.width, self.selected.height)
+            #     resized_image = pygame.transform.scale(image, (self.selected.width, self.selected.height))
+            #     self.display_surface.blit(resized_image, rect)
+            # except pygame.error as e:
+            #     print("Error loading image:", e)
 
     def draw_turn(self):
         if self.turn == True:	
@@ -246,16 +325,19 @@ class Player:
 
     def draw_box_help(self):
         if self.selected != None:
-            self.selected.set_position(self.box_help[1], self.box_help[2])
+            # self.selected.set_position(self.box_help[1], self.box_help[2])
             for i, domino in enumerate(self.board.placed_dominoes):
                 if(self.selected.is_overlapping(domino)):
                     self.box_help[0] = False
                     break
 
-        if self.board.y > self.box_help[2]:
-            self.box_help[0] = False
-        elif self.board.y + self.board.height > self.box_help[2]:
-            self.box_help[0] == False
+            # if self.box_help[2] < self.board.y  or self.box_help[2] + self.selected.height > self.board.y + self.board.height:
+            #     self.box_help[0] = False
+            #     return
+            
+            if self.selected.position[1] < self.board.y  or self.selected.position[1] + self.selected.height > self.board.y + self.board.height or self.selected.position[0] + self.selected.width > self.board.x + self.board.width:
+                self.box_help[0] = False
+                return
 
         if(self.box_help[0] == True) and self.error ==  False :
             box = pygame.Rect(self.box_help[1] ,self.box_help[2] , self.selected.width, self.selected.height)
@@ -266,7 +348,7 @@ class Player:
             pygame.draw.rect(self.display_surface, (250, 112, 112), box)
 
     def event_loop(self, event):
-
+        # print(event)
         if event.type == pygame.MOUSEBUTTONDOWN:
             mouse_position = pygame.mouse.get_pos()
 
@@ -280,10 +362,14 @@ class Player:
                         data = "swap"
                         data = pickle.dumps(data)
                         self.connection.send(data)
-                if self.chat_box.x <= mouse_position[0] <= self.chat_box.x + self.chat_box.width and self.chat_box.y <= mouse_position[1] <= self.chat_box.y + self.chat_box.height:
-                    self.chatting = True
+                # if self.chat_box.x + 5 <= mouse_position[0] <= self.chat_box.x + self.chat_box.width - 10 and self.chat_box.y + 400 - 50 <= mouse_position[1] <= self.chat_box.y + 40:
+                #     self.chatting = True
+                #     self.chat_box.active = True
 
-            if self.play_again == True:
+        # self.text_input_surface = (self.x + 5, self.y + 400 - 50), (self.width - 10, 40)
+
+
+            if self.playing == False:
                 return
 
             if self.selected != None:
@@ -292,15 +378,13 @@ class Player:
                     if(self.selected.is_overlapping(domino)):
                         self.box_help[0] = False
                         break
-                    
-            if self.board.y > self.box_help[2]:
-                self.box_help[0] = False
-            elif self.board.y + self.board.height > self.box_help[2]:
-                self.box_help[0] == False
+
+                if self.selected.position[1] < self.board.y  or self.selected.position[1] + self.selected.height > self.board.y + self.board.height or self.selected.position[0] + self.selected.width > self.board.x + self.board.width:
+                    self.box_help[0] = False
 
 
             if(self.is_dragging == False and self.selected == None and self.turn == True):
-                for i, domino in enumerate(self.hand):
+                for i, domino in enumerate(self.hand):  
                     domino_position = domino.position
                     if self.is_mouse_on_domino(mouse_position, domino_position):
                         self.selected = domino
@@ -311,12 +395,14 @@ class Player:
                         break
 
             elif (self.turn == True):
-                if(self.first_play == True and len(self.hand) == 6 and self.selected.is_horizontal):
+                if(self.first_play == True and len(self.hand) == 6):
                     domino_x = mouse_position[0] - self.selected.width//2
                     domino_y = mouse_position[1] - self.selected.height//2
                     if self.board.y > domino_y:
                         return
-                    elif self.board.y + self.board.height < domino_y:
+                    elif self.board.y + self.board.height < domino_y + self.selected.height:
+                        return
+                    elif self.board.x + self.board.width < domino_x + self.selected.width:
                         return
 
                     self.selected.set_position(domino_x,domino_y)
@@ -343,7 +429,10 @@ class Player:
                     data = pickle.dumps(data_to_send)
                     self.connection.send(data)
 
-                    if len(self.hand) == 0:    
+                    if len(self.hand) == 0:
+                        self.playing = False    
+                        self.status = "Win"
+                        self.first_play = False
                         data_to_send = ("winner")           
                         data = pickle.dumps(data_to_send)
                         self.connection.send(data)
@@ -363,37 +452,52 @@ class Player:
                     self.connection.send(data)
 
                     if len(self.hand) == 0:    
+                        self.playing = False    
+                        self.status = "Win"
+                        self.first_play = False
                         data_to_send = ("winner")           
                         data = pickle.dumps(data_to_send)
                         self.connection.send(data)
 
         if event.type == pygame.KEYDOWN:
             if self.chatting == True:
-                global user_text
-                if event.key == pygame.K_RETURN:
-                    self.chat_box.messages.append(self.username + ':' + user_text)
-                    self.chatting = False
-                    data_to_send = ("chat", self.username, user_text)
-                    data = pickle.dumps(data_to_send)
-                    self.connection.send(data)
-                    user_text = ''
+                pass
+                # if event.key == pygame.K_RETURN:
+                #     if self.chat_box.text == '':
+                #         self.chat_box.active = False
+                #         self.chatting = False
+                #     else:
+                #         self.chat_box.messages.append(self.username + ':' + self.chat_box.text)
+                #         self.chatting = False
+                #         self.chat_box.active = False
+                #         data_to_send = ("chat", self.username, self.chat_box.text)
+                #         data = pickle.dumps(data_to_send)
+                #         self.connection.send(data)
+                #         self.chat_box.text = ''
 
-                elif event.key == pygame.K_BACKSPACE:
-                    user_text = user_text[:-1]
-                else:
-                    user_text += event.unicode
+                # elif event.key == pygame.K_BACKSPACE:
+                #     self.chat_box.text = self.chat_box.text[:-1]
+                # else:
+                #     self.chat_box.text += event.unicode
             else:
+                # if event.key == pygame.K_g:
+                #     for i,domino in enumerate(self.hand):
+                #         print(str(domino))                if event.key == pygame.K_RETURN and self.play_again == True:
+
+
                 if event.key == pygame.K_RETURN and self.play_again == True:
                     self.hand = []
                     self.other_player = 0
                     self.board.play_again()
                     self.over = False
                     self.play_again = False
+                    self.other_player_hand = []
                     if (self.is_host == True):
+                        self.playing = True
                         self.board.create()
                         self.board.shuffle()
                         self.hand = self.board.hand_player()
-                        self.create_image_pg()
+                        # self.create_image_pg()
                         self.other_player = 7
                         data = ("play-again", self.board.domino_list)
                         if (self.first_play == True):
@@ -412,7 +516,7 @@ class Player:
 
                 if event.key == pygame.K_r:
                     if (self.is_dragging == True):
-                        self.selected.set_image_pg(pygame.transform.rotate(self.selected.get_image_pg(), -90))
+                        # self.selected.set_image_pg(pygame.transform.rotate(self.selected.get_image_pg(), -90))
                         self.selected.rotated()
                         self.selected.is_horizontal = not self.selected.is_horizontal
                         if self.rotated == 3:
@@ -424,7 +528,7 @@ class Player:
 
                 if event.key == pygame.K_q:
                     if self.is_dragging and self.selected.is_horizontal == True:
-                        self.selected.set_image_pg(pygame.transform.rotate(self.selected.get_image_pg(), -90))
+                        # self.selected.set_image_pg(pygame.transform.rotate(self.selected.get_image_pg(), -90))
                         self.selected.rotated()
                         self.selected.is_horizontal = not self.selected.is_horizontal
 
@@ -443,24 +547,91 @@ class Player:
                         self.selected = None
                         self.box_help[0] = False
                         data = "drop"
-
+        
         if event.type == pygame.MOUSEMOTION:
             mouse_position = pygame.mouse.get_pos()
+
+            if self.selected == None:
+                if self.button_pass_x <= mouse_position[0] <= self.button_pass_x + self.button_pass_width and self.button_pass_y <= mouse_position[1] <= self.button_pass_y + self.button_pass_height:
+                    self.button_pass_color = GRAY
+                else:
+                    self.button_pass_color = GREEN
+
+            if self.selected != None:
+                self.selected.set_position(self.box_help[1], self.box_help[2])
+                for i, domino in enumerate(self.board.placed_dominoes):
+                    if(self.selected.is_overlapping(domino)):
+                        self.box_help[0] = False
+                        break
+                    
+                # if self.board.y > self.box_help[2]:
+                #     self.box_help[0] = False
+                # elif self.board.y + self.board.height > self.box_help[2]:
+                #     self.box_help[0] == False
+
+
             if self.is_dragging and self.selected.is_horizontal == True:
                 #Co 1 domino o tren ban
                 if(len(self.board.placed_dominoes) > 0 and len(self.board.placed_dominoes) == 1):
                     domino = self.board.placed_dominoes[0]
-                    if domino.is_horizontal == True:
-                        if domino.is_mouse_link_domino_left(mouse_position):
-                            self.left_domino = True
-                            self.box_help[1] = domino.position[0] - self.selected.width
+                    # value_horizontal = self.selected.check_mouse_link_domino_horizontal(mouse_position, domino)
+                    if domino.is_horizontal:
+                        value_horizontal = self.selected.check_mouse_link_first_domino_horizontal(mouse_position, domino)
+                        if value_horizontal in ["Left", "Right"] :
+                            if value_horizontal =="Left":
+                                self.box_help[1] = domino.position[0] - self.selected.width
+                                self.box_help[2] = domino.position[1]
+                                self.left_domino = True
+                                self.up_domino = None
+                            elif value_horizontal =="Right":
+                                self.box_help[1] = domino.position[0] + domino.width
+                                self.box_help[2] = domino.position[1] 
+                                self.left_domino = False
+                                self.up_domino = None 
+                            self.box_help[0] = True
+                            valid = self.selected.check_valid_domino_board_horizontal(domino, self.left_domino, self.up_domino)
                             self.insert_start = True
-                            self.motion_horizontal_domino_fisrt(domino)
-                        if domino.is_mouse_link_domino_right(mouse_position):
-                            self.left_domino = False
-                            self.box_help[1] = domino.position[0] + self.selected.width
-                            self.insert_start = False
-                            self.motion_horizontal_domino_fisrt(domino)
+                            if(valid == True):
+                                self.error  = False
+                            else:
+                                self.error  = True
+                            return   
+                        else:
+                            self.box_help[0] = False
+                    elif domino.is_horizontal == False:
+                        value_vertical = self.selected.check_mouse_link_first_domino_vertical(mouse_position, self.board.placed_dominoes[0])
+                        if value_vertical not in ["Up", "Down", None]:
+                            if value_vertical == "Up-Left":
+                                self.box_help[1] = domino.position[0] - self.selected.width
+                                self.box_help[2] = domino.position[1]
+                                self.left_domino = True
+                                self.up_domino = True
+                            elif value_vertical == "Up-Right":
+                                self.box_help[1] = domino.position[0] + domino.width
+                                self.box_help[2] = domino.position[1]
+                                self.left_domino = False
+                                self.up_domino = True
+                            elif value_vertical == "Down-Left":
+                                self.box_help[1] = domino.position[0] - self.selected.width
+                                self.box_help[2] = domino.position[1] + self.selected.height
+                                self.left_domino = True
+                                self.up_domino = False
+                            elif value_vertical == "Down-Right":
+                                self.box_help[1] = domino.position[0] + domino.width
+                                self.box_help[2] = domino.position[1] + self.selected.height
+                                self.left_domino = False
+                                self.up_domino = False
+                            self.box_help[0] = True
+                            valid = self.selected.check_valid_domino_board_vertical(domino, self.left_domino, self.up_domino)
+                            self.insert_start = True
+                            if(valid == True):
+                                self.error  = False
+                            else:
+                                self.error  = True
+                            return
+                        else:
+                            self.box_help[0] = False 
+
                 elif len(self.board.placed_dominoes) > 0:
                     domino_start = self.board.placed_dominoes[0]
                     domino_end = self.board.placed_dominoes[len(self.board.placed_dominoes)-1]
@@ -582,7 +753,68 @@ class Player:
                             self.box_help[0] = False                   
             elif self.is_dragging and self.selected.is_horizontal == False:
                 if(len(self.board.placed_dominoes) > 0 and len(self.board.placed_dominoes) == 1):
-                    pass
+                    first_domino = self.board.placed_dominoes[0]
+                    # value_vertical = self.selected.check_mouse_link_first_domino_vertical(mouse_position, first_domino)
+                    if(first_domino.is_horizontal):
+                        value_start_horizontal = self.selected.check_mouse_link_first_domino_horizontal(mouse_position, first_domino)
+                        if value_start_horizontal not in ["Left", "Right", None]:
+                            if value_start_horizontal == "Left-Up":
+                                self.box_help[1] = first_domino.position[0]
+                                self.box_help[2] = first_domino.position[1] - self.selected.height
+                                self.left_domino = True
+                                self.up_domino = True
+                            elif value_start_horizontal == "Left-Down":
+                                self.box_help[1] = first_domino.position[0]
+                                self.box_help[2] = first_domino.position[1] + first_domino.height
+                                self.left_domino = True
+                                self.up_domino = False
+                            elif value_start_horizontal == "Right-Up":
+                                self.box_help[1] = first_domino.position[0] + self.selected.width
+                                self.box_help[2] = first_domino.position[1] - self.selected.height
+                                self.left_domino = False
+                                self.up_domino = True
+                            elif value_start_horizontal == "Right-Down":
+                                self.box_help[1] = first_domino.position[0] + self.selected.width
+                                self.box_help[2] = first_domino.position[1] + first_domino.height
+                                self.left_domino = False
+                                self.up_domino = False
+                            
+                            self.box_help[0] = True
+                            valid = self.selected.check_valid_domino_board_horizontal(first_domino, self.left_domino, self.up_domino)
+                            self.insert_start = True
+                            if(valid == True):
+                                self.error  = False
+                            else:
+                                self.error  = True
+                            return
+                        else:
+                            self.box_help[0] = False                                 
+                        
+                    elif(first_domino.is_horizontal == False):
+                        value_start_vertical = self.selected.check_mouse_link_first_domino_vertical(mouse_position, first_domino)
+                        if value_start_vertical in ["Up", "Down"]:
+                            if value_start_vertical =="Up":
+                                self.box_help[1] = first_domino.position[0] 
+                                self.box_help[2] = first_domino.position[1] - first_domino.height
+                                self.left_domino = None
+                                self.up_domino = True
+                            elif value_start_vertical =="Down":
+                                self.box_help[1] = first_domino.position[0]
+                                self.box_help[2] = first_domino.position[1] + first_domino.height
+                                self.left_domino = None
+                                self.up_domino = False 
+                            
+                            self.box_help[0] = True
+                            valid = self.selected.check_valid_domino_board_vertical(first_domino, self.left_domino, self.up_domino)
+                            self.insert_start = True
+                            if(valid == True):
+                                self.error  = False
+                            else:
+                                self.error  = True
+                            return
+                        else:
+                            self.box_help[0] = False
+
                 elif len(self.board.placed_dominoes) > 0:
                     domino_start = self.board.placed_dominoes[0]
                     domino_end = self.board.placed_dominoes[len(self.board.placed_dominoes)-1]
@@ -649,7 +881,6 @@ class Player:
 
                     if(domino_end.is_horizontal):
                         value_end_horizontal = self.selected.check_mouse_link_domino_horizontal(mouse_position, domino_end)
-                        # print(domino_end.get_dot_counts(), value_end_horizontal)
                         if value_end_horizontal not in ["Left", "Right", None]:
                             if value_end_horizontal == "Left-Up":
                                 self.box_help[1] = domino_end.position[0]
@@ -708,6 +939,21 @@ class Player:
                         else:
                             self.box_help[0] = False  
 
+        if (event.type == pygame_gui.UI_TEXT_ENTRY_FINISHED and event.ui_object_id == '#main_text_entry'):
+            # self.chat_box.messages.append(self.username + ':' + event.text)
+            if event.text != '':
+                self.chat_box.box_message.append_html_text(f"<p>{self.username}:{event.text}</p>")
+                # self.chatting = False
+                # self.chat_box.active = False
+                data_to_send = ("chat", self.username, event.text)
+                data = pickle.dumps(data_to_send)
+                self.connection.send(data)
+                self.chat_box.text_input.clear()
+
+        if self.selected != None:
+            return
+        manager.process_events(event)
+
     def is_mouse_on_domino(self, mouse_position, domino_position):
         if mouse_position[0] > domino_position[0]\
             and mouse_position[0] < (domino_position[0] + 48)\
@@ -717,9 +963,6 @@ class Player:
         else :
             return False
 
-    def place_domino(self, board, domino):
-    # Xử lý đặt domino lên bảng (chưa thực hiện)
-        pass
 
     def get_player_hand(self):
         hand_player = []
@@ -753,7 +996,7 @@ class Board:
         self.domino_list = []
         self.placed_dominoes = []  # Danh sách domino đã đặt
         self.surface = surface
-        self.width = W
+        self.width = W - 200
         self.height = 400
         self.x = 0
         self.y = (H - self.height)//2
@@ -867,6 +1110,19 @@ class ChatBox:
         self.height = 400
         self.x = W - 210
         self.y = (H - 400) // 2
+        self.active = False
+        self.text = ''
+        self.txt_surface =  text_font.render(self.text, True, WHITE)
+        self.txt_rect = self.txt_surface.get_rect()
+        self.cursor = pygame.Rect(self.txt_rect.topright, (3, self.txt_rect.height + 2))
+
+        self.text_input_surface = (self.x + 5, self.y + 400 - 50), (self.width - 10, 40)
+        self.text_input = pygame_gui.elements.UITextEntryLine(relative_rect=pygame.Rect(self.text_input_surface), manager=manager,
+                                               object_id= '#main_text_entry')
+
+
+        self.box_message = pygame_gui.elements.UITextBox("", relative_rect=pygame.Rect((self.x + 5,self.y + 5), (self.width - 10,self.height - 60)),manager=manager, object_id='#box_message', allow_split_dashes =False)
+
 
     def draw_chat_box(self):
         WHITE = (255, 255, 255)
@@ -884,13 +1140,30 @@ class ChatBox:
         input_box_x = chat_box_x + 10
         input_box_y = chat_box_y + chat_box_height - input_box_height - 20
 
-        self.surface.blit(text_surface,(input_box_x + 5,input_box_y + 10))
+        # self.surface.blit(text_surface,(input_box_x + 5,input_box_y + 10))
+        # self.surface.blit(self.txt_surface,(input_box_x + 5,input_box_y + 10))
+
+        # self.txt_surface = text_font.render(self.text, True, WHITE)
+        # if time.time() % 1 > 0.5 and self.active:
+
+        #     # bounding rectangle of the text
+        #     text_rect = self.txt_surface.get_rect(topleft = (input_box_x + 5, input_box_y + 10))
+
+        #     # set cursor position
+        #     self.cursor.midleft = text_rect.midright
+
+        #     pygame.draw.rect(self.surface, WHITE, self.cursor)
+        
 
         # Vẽ khung chat
         pygame.draw.rect(self.surface, BLACK, (chat_box_x, chat_box_y, chat_box_width, chat_box_height), 2)
-        input_rect = pygame.draw.rect(self.surface, BLACK, (input_box_x, input_box_y, input_box_width, input_box_height), 2)
-        input_rect.w = max(100, text_surface.get_width() + 10)
 
+        # input_rect = pygame.draw.rect(self.surface, BLACK, (input_box_x, input_box_y, input_box_width, input_box_height), 2)
+        # input_rect.w = max(100, text_surface.get_width() + 10)
+        UI_REFRESH_RATE = clock.tick(60)/1000
+
+        manager.update(UI_REFRESH_RATE)
+        manager.draw_ui(self.surface)
         pygame.display.flip()
 
     def draw_message(self):
@@ -926,8 +1199,11 @@ class Domino:
         self.is_horizontal = is_horizontal
         self.link = link
 
+    # def __str__(self):
+    #     return f"{self.dot1}-{self.dot2}-{self.image}-{self.position[0]}-{self.position[1]}-{self.link}-{self.is_horizontal}-{self.width}-{self.height}"
+
     def __str__(self):
-        return f"{self.dot1}-{self.dot2}-{self.image}-{self.position[0]}-{self.position[1]}-{self.link}-{self.is_horizontal}-{self.width}-{self.height}"
+        return f"{self.image}-{self.image_pg}"
 
     def get_link(self):
         return self.link
@@ -999,6 +1275,70 @@ class Domino:
             if(self.dot1 == domino_board.dot2):
                 return True
         return False
+    
+    def check_mouse_link_first_domino_horizontal(self, mouse_position, domino):
+        if mouse_position[0] > (domino.position[0]) \
+            and mouse_position[0] < (domino.position[0] + self.width)\
+            and mouse_position[1] > (domino.position[1] - self.height)\
+            and mouse_position[1] < (domino.position[1]):
+            return "Left-Up"
+        elif mouse_position[0] > (domino.position[0]) \
+            and mouse_position[0] < (domino.position[0] + self.width)\
+            and mouse_position[1] > (domino.position[1] + domino.height)\
+            and mouse_position[1] < (domino.position[1] + domino.height + self.height):
+            return "Left-Down"
+        elif mouse_position[0] > (domino.position[0] + self.width) \
+            and mouse_position[0] < (domino.position[0] + self.width * 2)\
+            and mouse_position[1] > (domino.position[1] - self.height)\
+            and mouse_position[1] < (domino.position[1]):
+            return "Right-Up"
+        elif mouse_position[0] > (domino.position[0] + self.width) \
+            and mouse_position[0] < (domino.position[0] + self.width * 2)\
+            and mouse_position[1] > (domino.position[1] + domino.height)\
+            and mouse_position[1] < (domino.position[1] + domino.height + self.height):
+            return "Right-Down"
+        elif mouse_position[0] > (domino.position[0] - self.width) \
+            and mouse_position[0] < (domino.position[0])\
+            and mouse_position[1] > (domino.position[1])\
+            and mouse_position[1] < (domino.position[1] + self.height):
+            return "Left"
+        elif mouse_position[0] > (domino.position[0] + domino.width) \
+            and mouse_position[0] < (domino.position[0] + domino.width + self.width)\
+            and mouse_position[1] > (domino.position[1] )\
+            and mouse_position[1] < (domino.position[1] + self.height ):
+            return "Right"
+        
+    def check_mouse_link_first_domino_vertical(self, mouse_position, domino):
+        if mouse_position[0] > (domino.position[0] - self.width) \
+            and mouse_position[0] < (domino.position[0])\
+            and mouse_position[1] > (domino.position[1])\
+            and mouse_position[1] < (domino.position[1] + self.height):
+            return "Up-Left"
+        elif mouse_position[0] > (domino.position[0] + domino.width) \
+            and mouse_position[0] < (domino.position[0] + domino.width + self.width)\
+            and mouse_position[1] > (domino.position[1])\
+            and mouse_position[1] < (domino.position[1] + self.height):
+            return "Up-Right"
+        elif mouse_position[0] > (domino.position[0] - self.width) \
+            and mouse_position[0] < (domino.position[0])\
+            and mouse_position[1] > (domino.position[1] + self.height )\
+            and mouse_position[1] < (domino.position[1] + self.height * 2):
+            return "Down-Left"
+        elif mouse_position[0] > (domino.position[0] + domino.width) \
+            and mouse_position[0] < (domino.position[0]+ domino.width + self.width)\
+            and mouse_position[1] > (domino.position[1] + self.height )\
+            and mouse_position[1] < (domino.position[1] + self.height * 2):
+            return "Down-Right"
+        elif mouse_position[0] > (domino.position[0]) \
+            and mouse_position[0] < (domino.position[0] + self.width)\
+            and mouse_position[1] > (domino.position[1] - self.height)\
+            and mouse_position[1] < (domino.position[1]):
+            return "Up"
+        elif mouse_position[0] > (domino.position[0]) \
+            and mouse_position[0] < (domino.position[0]+ self.width)\
+            and mouse_position[1] > (domino.position[1] +domino.height )\
+            and mouse_position[1] < (domino.position[1] + domino.height + self.height ):
+            return "Down"
     
     def check_mouse_link_domino_horizontal(self, mouse_position, domino):
         if mouse_position[0] > (domino.position[0]) \
@@ -1111,6 +1451,15 @@ class Domino:
                 return True
         return False
     
+    def check_continue_game_first_domino(self, first_domino):
+        if (first_domino.dot1 == self.dot1)\
+            or (first_domino.dot1 == self.dot2)\
+            or first_domino.dot2 == self.dot1\
+            or first_domino.dot2 == self.dot2:
+            return True
+        return False
+           
+
     def check_continue_game(self, domino_start, domino_end):
         if domino_start.link == 1:
             if self.dot1 == domino_start.dot2 or self.dot2 == domino_start.dot2:

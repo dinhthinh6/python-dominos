@@ -10,8 +10,8 @@ import pygame_menu
 from src.Model import Player, Board
 
 FPS = 60
-WINDOW_SIZE = (540, 540)
-W, H = 1400, 720
+WINDOW_SIZE = (580, 580)
+W, H = 1490, 720
 
 
 class Client:
@@ -25,10 +25,10 @@ class Client:
         data = "get-board"
         data = pickle.dumps(data)
         self.sock.send(data)
-        self.board = Board()
-        reply = self.sock.recv(2048*4)
+        # self.board = Board()
+        reply = self.sock.recv(2048)
         data_received = pickle.loads(reply)
-        self.board = copy.deepcopy(data_received)
+        self.board = data_received
         hand = self.board.hand_player()
         self.gui = PlaySurface(self.sock, self.host, self.port, username, hand, self.oppenent_name, False)
 
@@ -54,8 +54,8 @@ class Client:
                         self.gui.gui_player.switch_turn()
                         self.gui.gui_player.check_continue_player()
                     elif data_received[0] == 'chat':
-                        message = data_received[1] + ':' + data_received[2]
-                        self.gui.gui_player.chat_box.messages.append(message)
+                        message = f"<p>{data_received[1]}:{data_received[2]}</p>"
+                        self.gui.gui_player.chat_box.box_message.append_html_text(message)
                     # elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "over":
                     #     print(self.gui.gui_player.over)
                     #     self.gui.gui_player.check_continue_player()
@@ -65,15 +65,19 @@ class Client:
                     #         self.gui.gui_player.score += self.gui.score
 
                     elif isinstance(data_received, tuple) and len(data_received) == 4 and data_received[0] == "game_over":
-                        if(self.gui.gui_player.over):
-                            self.gui.over = True
-                            self.gui.score = data_received[1]
-                            self.gui.gui_player.score += self.gui.score
-                            self.gui.gui_player.first_play = data_received[2]
-                            self.gui.gui_player.other_player_hand = data_received[3]
+                        # if(self.gui.gui_player.over):
+                        # self.gui.over = True
+                        score = data_received[1]
+                        self.gui.gui_player.status = "Draw"
+                        self.gui.gui_player.turn_score = score
+                        self.gui.gui_player.score += score
+                        self.gui.gui_player.playing = False
+                        self.gui.gui_player.first_play = data_received[2]
+                        self.gui.gui_player.other_player_hand = data_received[3]
 
                     elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "play-again":
-                        self.gui.over = False
+                        # self.gui.over = False
+                        self.gui.gui_player.playing = True
                         if(self.gui.gui_player.first_play == True):
                             self.gui.gui_player.turn = True
                         else:
@@ -83,9 +87,10 @@ class Client:
                         self.gui.gui_player.play_again = False
                         self.gui.gui_player.board.placed_dominoes = []
                         self.gui.gui_player.board.domino_list = data_received[1]
-                        self.gui.gui_player.hand = self.gui.gui_player.board.hand_player()
-                        self.gui.gui_player.create_image_pg()
+                        self.gui.gui_player.hand = copy.deepcopy(self.gui.gui_player.board.hand_player())
+                        # self.gui.gui_player.create_image_pg()
                         self.gui.gui_player.other_player = 7
+                        self.gui.gui_player.other_player_hand = []
 
                         data_to_send = ("start-game", self.gui.gui_player.board.domino_list)           
                         data = pickle.dumps(data_to_send)
@@ -93,14 +98,18 @@ class Client:
                         # other_score = data_received[1]
                         # print(other_score)
                     elif data_received == "winner":
+                        self.gui.gui_player.status = "Lose"
+                        self.gui.gui_player.playing = False
+                        self.gui.gui_player.play_again = True
                         score = self.gui.gui_player.get_domino_score()
                         data_to_send = ("score", score, self.gui.gui_player.get_player_hand())           
                         data = pickle.dumps(data_to_send)
                         self.sock.send(data)
 
                     elif isinstance(data_received, tuple) and len(data_received) == 3 and data_received[0] == "score":
-                        self.gui.score = data_received[1]
-                        self.gui.gui_player.score += self.gui.score
+                        your_score = data_received[1]
+                        self.gui.gui_player.turn_score = your_score
+                        self.gui.gui_player.score += your_score
                         self.gui.gui_player.other_player_hand = data_received[2]
                     
                 except Exception as e:
@@ -202,56 +211,58 @@ class Server:
                         self.board.placed_dominoes = placed_dominoes
                         self.gui.gui_player.board.placed_dominoes = self.board.placed_dominoes
                         self.gui.gui_player.switch_turn()
-                        if(self.gui.gui_player.over):
-                            self.gui.over = True
                         self.gui.gui_player.other_player -= 1
 
                     elif data_received == "swap":
                         self.gui.gui_player.switch_turn()
-                        if(self.gui.gui_player.over):
-                            self.gui.over = True
 
                     elif data_received[0] == 'chat':
-                        message = data_received[1] + ':' + data_received[2]
-                        self.gui.gui_player.chat_box.messages.append(message)
+                        message = f"<p>{data_received[1]}:{data_received[2]}</p>"
+                        self.gui.gui_player.chat_box.box_message.append_html_text(message)
 
                     elif data_received == "winner":
+                        self.gui.gui_player.status = "Lose"
+                        self.gui.gui_player.playing = False
+                        self.gui.gui_player.play_again = True
                         score = self.gui.gui_player.get_domino_score()
                         data_to_send = ("score", score, self.gui.gui_player.get_player_hand())                
                         data = pickle.dumps(data_to_send)
                         self.conn.send(data)
                         
                     elif isinstance(data_received, tuple) and len(data_received) == 3 and data_received[0] == "score":
-                        self.gui.score = data_received[1]
-                        self.gui.gui_player.score += self.gui.score
+                        your_score = data_received[1]
+                        self.gui.gui_player.turn_score = your_score
+                        self.gui.gui_player.score += your_score
                         self.gui.gui_player.other_player_hand = data_received[2]
 
                     elif isinstance(data_received, tuple) and len(data_received) == 3 and data_received[0] == "over":
                         print(self.gui.gui_player.over)
                         self.gui.gui_player.check_continue_player()
                         if(self.gui.gui_player.over):
-                            self.gui.over = True
-                            self.gui.score = data_received[1]
+                            # self.gui.over = True
+                            your_score = data_received[1]
+                            self.gui.gui_player.turn_score = your_score
                             self.gui.gui_player.other_player_hand = data_received[2]
-                            self.gui.gui_player.score += self.gui.score
-                            score = self.gui.gui_player.get_domino_score()
+                            self.gui.gui_player.score += your_score
+                            oppenent_score = self.gui.gui_player.get_domino_score()
+                            self.gui.gui_player.playing = False
+                            self.gui.gui_player.status = "Draw"
 
                             #Ít điểm hơn thì chuyển lượt cho người đó đi trước khi bắt đầu game sau
-                            if(score <= self.gui.score):
+                            if(oppenent_score <= your_score):
                                 client_first_turn = True
                                 self.gui.gui_player.first_play = False
-                                data_to_send = ("game_over", score, client_first_turn, self.gui.gui_player.get_player_hand())                
+                                data_to_send = ("game_over", oppenent_score, client_first_turn, self.gui.gui_player.get_player_hand())                
                                 data = pickle.dumps(data_to_send)
                                 self.conn.send(data)
                             else:
                                 client_first_turn = False
                                 self.gui.gui_player.first_play = True
-                                data_to_send = ("game_over", score, client_first_turn, self.gui.gui_player.get_player_hand())                
+                                data_to_send = ("game_over", oppenent_score, client_first_turn, self.gui.gui_player.get_player_hand())                
                                 data = pickle.dumps(data_to_send)
                                 self.conn.send(data)
                                 
                     elif isinstance(data_received, tuple) and len(data_received) == 2 and data_received[0] == "start-game":
-                        self.gui.over = False
                         self.gui.gui_player.board.domino_list = data_received[1]
 
                 except Exception as e:
@@ -286,12 +297,8 @@ class PlaySurface:
         self.connection = connection
         self.gui_player = Player(connection, host, port, username, competitor_name, is_host)
         self.gui_player.hand = hand
-        self.gui_player.create_image_pg()
+        # self.gui_player.create_image_pg()
         self.gui_player.other_player = 7
-        self.end_game = False
-        self.over = False
-        self.win = False
-        self.score = 0
         self.quit = False
         if(is_host == True):
             self.gui_player.turn = True
@@ -308,29 +315,29 @@ class PlaySurface:
 
             self.gui_player.play()
             
-            if(len(self.gui_player.hand) == 0 and self.gui_player.selected == None and self.gui_player.other_player > 0):
-                self.gui_player.play_again = True
-                # self.gui_player.score = self.score
-                end_text = pygame.font.SysFont(None, 36).render("You Win! Press 'Enter' to play again. Your score: " + str(self.score) , True, (244,67,54))
-                end_text_rect = end_text.get_rect(center=(W // 2, H // 2))
-                self.gui_player.display_surface.blit(end_text, end_text_rect)
-                self.gui_player.play_again = True
+            # if(len(self.gui_player.hand) == 0 and self.gui_player.selected == None and self.gui_player.other_player > 0):
+            #     self.gui_player.play_again = True
+            #     # self.gui_player.score = self.score
+            #     end_text = pygame.font.SysFont(None, 36).render("You Win! Press 'Enter' to play again. Your score: " + str(self.score) , True, (244,67,54))
+            #     end_text_rect = end_text.get_rect(center=(W // 2, H // 2))
+            #     self.gui_player.display_surface.blit(end_text, end_text_rect)
+            #     self.gui_player.play_again = True
 
-            elif (self.gui_player.other_player == 0 and len(self.gui_player.hand) >0):
-                self.gui_player.play_again = True
-                # self.gui_player.score = self.score
-                end_text = pygame.font.SysFont(None, 36).render("You Lose! Press 'Enter' to play again." , True, (211,67,54))
-                end_text_rect = end_text.get_rect(center=(W// 2, H // 2))
-                self.gui_player.display_surface.blit(end_text, end_text_rect)
-                self.gui_player.play_again = True
+            # elif (self.gui_player.other_player == 0 and len(self.gui_player.hand) >0):
+            #     self.gui_player.play_again = True
+            #     # self.gui_player.score = self.score
+            #     end_text = pygame.font.SysFont(None, 36).render("You Lose! Press 'Enter' to play again." , True, (211,67,54))
+            #     end_text_rect = end_text.get_rect(center=(W// 2, H // 2))
+            #     self.gui_player.display_surface.blit(end_text, end_text_rect)
+            #     self.gui_player.play_again = True
 
-            elif self.over and len(self.gui_player.hand) >0 :
-                self.gui_player.play_again = True
-                # self.gui_player.score = self.score  
-                end_text = pygame.font.SysFont(None, 36).render("Game Over! Press 'Enter' to play again. Your score: " + str(self.score), True, (255, 255, 255))
-                end_text_rect = end_text.get_rect(center=(W // 2, H // 2))
-                self.gui_player.display_surface.blit(end_text, end_text_rect)
-                self.gui_player.play_again = True   
+            # elif self.over and len(self.gui_player.hand) >0 :
+            #     self.gui_player.play_again = True
+            #     # self.gui_player.score = self.score  
+            #     end_text = pygame.font.SysFont(None, 36).render("Game Over! Press 'Enter' to play again. Your score: " + str(self.score), True, (255, 255, 255))
+            #     end_text_rect = end_text.get_rect(center=(W // 2, H // 2))
+            #     self.gui_player.display_surface.blit(end_text, end_text_rect)
+            #     self.gui_player.play_again = True   
             if self.quit == True:
                 break
             pygame.display.update()

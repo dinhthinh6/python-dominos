@@ -11,7 +11,7 @@ from typing import Optional
 from main import Server, Client, Board
 
 FPS = 60
-WINDOW_SIZE = (540, 540)
+WINDOW_SIZE = (580, 580)
 
 class Menu:
     def __init__(self):

@@ -1,3 +1,4 @@
 pygame==2.5.2
 pygame-menu==4.4.3
 tkinter
+pygame_gui==0.6.10
