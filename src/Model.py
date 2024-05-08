@@ -325,7 +325,7 @@ class Player:
 
     def draw_box_help(self):
         if self.selected != None:
-            # self.selected.set_position(self.box_help[1], self.box_help[2])
+            self.selected.set_position(self.box_help[1], self.box_help[2])
             for i, domino in enumerate(self.board.placed_dominoes):
                 if(self.selected.is_overlapping(domino)):
                     self.box_help[0] = False
