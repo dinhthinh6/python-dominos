@@ -429,13 +429,13 @@ class Player:
                     data = pickle.dumps(data_to_send)
                     self.connection.send(data)
 
-                    if len(self.hand) == 0:
-                        self.playing = False    
-                        self.status = "Win"
-                        self.first_play = False
-                        data_to_send = ("winner")           
-                        data = pickle.dumps(data_to_send)
-                        self.connection.send(data)
+                    # if len(self.hand) == 0:
+                    #     self.playing = False    
+                    #     self.status = "Win"
+                    #     self.first_play = False
+                    #     data_to_send = ("winner")           
+                    #     data = pickle.dumps(data_to_send)
+                    #     self.connection.send(data)
 
 
                 elif(self.box_help[0] == True and self.insert_start == False and  self.error  ==  False):
@@ -451,13 +451,13 @@ class Player:
                     data = pickle.dumps(data_to_send)
                     self.connection.send(data)
 
-                    if len(self.hand) == 0:    
-                        self.playing = False    
-                        self.status = "Win"
-                        self.first_play = False
-                        data_to_send = ("winner")           
-                        data = pickle.dumps(data_to_send)
-                        self.connection.send(data)
+                    # if len(self.hand) == 0:    
+                    #     self.playing = False    
+                    #     self.status = "Win"
+                    #     self.first_play = False
+                    #     data_to_send = ("winner")           
+                    #     data = pickle.dumps(data_to_send)
+                    #     self.connection.send(data)
 
         if event.type == pygame.KEYDOWN:
             if self.chatting == True:
