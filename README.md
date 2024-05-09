@@ -2,7 +2,7 @@
 
 ### **Step 1: Download the source code from Github**
 
-First, you need to download the source code of Python Dominos from Github. You can access the project's Github page at: [https://github.com/dinhthinh6/python-dominos/releases/tag/v.1.0.0](https://github.com/dinhthinh6/python-dominos/releases/tag/v.1.0.0)
+First, you need to download the source code of Python Dominos from Github. You can access the project's Github page at: [https://github.com/dinhthinh6/python-dominos/releases/tag/v.1.0.0](https://github.com/dinhthinh6/python-dominos/releases/tag/v1.0.0)
 
 Download the latest version of the python-dominos.zip file that corresponds to your operating system. Proceed to download and extract it.
 
