@@ -41,8 +41,13 @@ sudo apt install python3.10-venv
 Next create virtual environment
 ```powershell
 python3 -m venv myven
+```
+
+Next use virtual environment
+```powershell
 source myven/bin/activate
 ```
+
 Next, run this command to install the libraries:
 
 ```powershell
