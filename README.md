@@ -1,4 +1,4 @@
-## **Introuduce Game:**
+## **Introduce Game:**
 - Website for introduce: [https://phamdangkhoagh.github.io/Dominos/](https://phamdangkhoagh.github.io/Dominos/)
 
 ## **Guide to installing Python-Dominos from the source code**
