@@ -9,7 +9,7 @@ import pygame_gui
 
 
 W, H = 1490, 720
-TURN_FONT = pygame.font.SysFont("comicsans", 30)
+TURN_FONT = pygame.font.SysFont("", 30)
 WHITE = (255, 255, 255)
 BROWN = (210, 107, 3)
 GRAY = (127, 127, 127)
@@ -74,6 +74,7 @@ class Player:
         self.draw_domino_selected()
         self.draw_turn()
         self.draw_score()
+        self.draw_turtorial()
         self.draw_button_pass()
         self.draw_sound()
         self.chat_box.draw_chat_box()
@@ -158,7 +159,7 @@ class Player:
 
     def draw_score(self):
         text = TURN_FONT.render("Score: " + str(self.score) , 1,(255,255,255))
-        self.display_surface.blit(text,(20, 60))
+        self.display_surface.blit(text,(10, 60))
     
     def check_continue_player(self):
         if len(self.board.placed_dominoes) == 1:
@@ -322,6 +323,12 @@ class Player:
         else:
             text = TURN_FONT.render("Turn: Opponent's" , 1, (255,255,255))
             self.display_surface.blit(text,(10,10))
+
+    def draw_turtorial(self):
+        text_r = TURN_FONT.render("Press R to Rotate Domino" , 1,(255,255,255))
+        self.display_surface.blit(text_r,(10,600))
+        text_q = TURN_FONT.render("Press Q to Give Domino To Hand" , 1,(255,255,255))
+        self.display_surface.blit(text_q,(10,650))
 
     def draw_box_help(self):
         if self.selected != None:

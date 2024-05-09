@@ -4,7 +4,8 @@
         "colours":
         {
             "dark_bg":"#09940F",
-            "normal_border": "#999999",
+            "normal_text":"#FFFFFF",
+            "normal_border": "#000000",
             "link_text": "#FF0000",
             "link_hover": "#FFFF00",
             "link_selected": "#FFFFFF"
@@ -13,7 +14,7 @@
         "misc":
         {
             "border_width": "1",
-            "padding": "10,10",
+            "padding": "5,5",
             "link_normal_underline": "0",
             "link_hover_underline": "1",
             "line_spacing": "1.0"
@@ -39,7 +40,8 @@
         "colours":
         {
             "dark_bg":"#09940F",
-            "normal_border": "#999999",
+            "normal_text":"#FFFFFF",
+            "normal_border": "#000000",
             "link_text": "#FF0000",
             "link_hover": "#FFFF00",
             "link_selected": "#FFFFFF"
