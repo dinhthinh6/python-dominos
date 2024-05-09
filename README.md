@@ -50,6 +50,12 @@ pip3 install -r requirements.txt
 pip3 install pygame_gui==0.6.10
 ```
 
+Next, run this command to install tkinter:
+
+```powershell
+sudo apt install python3-tk
+```
+
 ### **Step 4: Run the application**
 
 After installing Python and the necessary libraries, you can run the Python Dominos application. Open Command Prompt or Terminal and navigate to the directory that contains the application's source code.
