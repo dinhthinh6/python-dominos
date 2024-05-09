@@ -33,7 +33,16 @@ If pip is not installed, use the following command to install pip:
 sudo apt-get update
 sudo apt-get install python3-pip
 ```
+Next install python3 venv
+```powershell
+sudo apt install python3.10-venv
+```
 
+Next create virtual environment
+```powershell
+python3 -m venv myven
+source myven/bin/activate
+```
 Next, run this command to install the libraries:
 
 ```powershell
