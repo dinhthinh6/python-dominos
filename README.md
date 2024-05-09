@@ -20,6 +20,7 @@ You can install the necessary libraries using the requirements.txt file that com
 
 ```powershell
 pip install -r requirements.txt
+pip install pygame_gui==0.6.10
 ```
 
 The above command will install all the necessary libraries to run the Python Dominos application.
@@ -36,7 +37,8 @@ sudo apt-get install python3-pip
 Next, run this command to install the libraries:
 
 ```powershell
-pip install -r requirements.txt
+pip3 install -r requirements.txt
+pip3 install pygame_gui==0.6.10
 ```
 
 ### **Step 4: Run the application**
