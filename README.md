@@ -1,3 +1,6 @@
+## **Introuduce Game:**
+- Website for introduce: [https://phamdangkhoagh.github.io/Dominos/](https://phamdangkhoagh.github.io/Dominos/)
+
 ## **Guide to installing Python-Dominos from the source code**
 
 ### **Step 1: Download the source code from Github**
