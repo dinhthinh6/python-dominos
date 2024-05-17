@@ -1,5 +1,6 @@
 ## **Introduce Game:**
 - Website for introduce: [https://phamdangkhoagh.github.io/Dominos/](https://phamdangkhoagh.github.io/Dominos/)
+- Project report: https://www.overleaf.com/read/jwzwhcxsswpc#f87f51
 
 ## **Guide to installing Python-Dominos from the source code**
 
